@@ -1,0 +1,15 @@
+# Memory system hooks for DeepSeek-TUI.
+# Merged into ~/.deepseek/config.toml by ./install.sh.
+# Idempotency marker: memory-session-end (do not remove this comment).
+
+[[hooks.hooks]]
+event = "session_start"
+command = "node .systems/memory/scripts/hooks/session-start.js"
+timeout_secs = 15
+name = "memory-session-start"
+
+[[hooks.hooks]]
+event = "session_end"
+command = "node .systems/memory/scripts/hooks/session-end.js"
+timeout_secs = 10
+name = "memory-session-end"
