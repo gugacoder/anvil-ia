@@ -40,6 +40,16 @@ DB do AppBuilder: **`DBx_appb_ti_teste`** em `172.27.0.121\SQL2k19` (instância 
 
 - Confirmar **onde está rodando o serviço Windows do Pipeliner** que aponta pra `DBx_appb_ti_teste` — pode estar no próprio `172.27.0.52` ou em outro host. Sem isso, pipelines cadastrados não executam.
 - Identificar **onde o serviço Pipeliner loga** execução de stages.
+- Cadastrar a chave `pipeliner` em `acesso.TBaplicacao` apontando pra URL do serviço Windows — sem isso o "Executar agora" via API do AppBuilder (proxy) não funciona.
+
+## Notas de uso descobertas (2026-05-14)
+
+- **Roteamento SPA com hash**: rotas internas usam `/#/...` (ex: `/#/pipeliner`). Bater em `/pipeliner` direto retorna JSON 401 — não é rota SPA, é endpoint API.
+- **Login Nome/Senha próprio** em `/#/login` (não Windows auth automático). Após autenticar, sessão por cookie. Usuário `guga` validado.
+- **AppBuilder mostra na home 4 cards**: Cadastros, Páginas, Pipeliner, Páginas Mobile.
+- **Rota `/#/pipeliner`** tem lista de integrações + botão `+` pra criar nova. Wizard: integração → estágio → ação. Tipos de ação: Request, SOAP, **Query**, Log, Monitoramento de Email, Envio de Email.
+- **UI não tem "Executar agora"** — menus de contexto só expõem operações CRUD.
+- Versões instaladas em 2026-05-14: Director.Portal 1.18.2, Processa.AppBuilder 1.13.1, Director.Web 1.21.3.
 
 ## Sources
 
