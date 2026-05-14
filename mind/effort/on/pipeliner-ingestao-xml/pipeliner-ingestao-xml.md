@@ -37,6 +37,43 @@ Implicação prática: Fase 1 não é "cadastrar no Portal Director", é **"cada
 
 Schedule passa de 10min (rascunho original) para **5min** (decisão do usuário 2026-05-14).
 
+### Validação end-to-end 2026-05-14 — ciclo provado pela UI do AppBuilder
+
+Ambiente de teste validado completo (Área 52, ver [[area-52]]):
+
+- Conexão ao DB `DBx_appb_ti_teste` em `172.27.0.121\SQL2k19` via login SQL `director_web` — OK.
+- HTTP nos 3 serviços (Director.Portal:4300, AppBuilder:4305, Director.Web:4600) — 200.
+- Login no AppBuilder em `http://172.27.0.52:4305` — feito pelo usuário (`guga`).
+- Procedure e tabela de prova criados:
+  - `dbo._anvil_log` (id, data, executado_por, mensagem, maquina) — convenção `_` é não-oficial.
+  - `dbo.sp_anvil_teste` — INSERT na `_anvil_log` (SUSER_SNAME, HOST_NAME).
+- Snapshot inicial: 0 linhas.
+
+**Walkthrough da UI** (rota `/#/pipeliner` — SPA com hash routing; `/pipeliner` direto retorna 401 JSON):
+
+1. Home → card "Pipeliner" → tela "Integração" (lista vazia inicialmente).
+2. Botão `+` → form "Cadastro de Integração" (campos: nome, status, urlBase prod, urlBase homolog, variáveis).
+3. Após preencher nome, botão "Adicionar estágio" → form "Cadastro de estágio" (nome, tempoExecucao em segundos, ambiente dropdown {Produção, Homologação}, status dropdown {Ativo, Inativo}).
+4. Botão "Adicionar Ação" → form "Cadastro de Ações". Default tipo = Request. Dropdown "Tipo de ação" expõe: Request, SOAP, **Query**, Log, Monitoramento de Email, Envio de Email.
+5. Trocando pra `Query`, o form colapsa pra mostrar só `Nome`, `Intervalo de execução`, `Procedure/Query` (textarea).
+6. Salvar Ação → volta pra Edição de Estágio (lista da ação aparece com Editar/Remover). Salvar Estágio → volta pra Edição da Integração (árvore esquerda mostra `pipeline > stage [HOMO] > QUERY ação`). Salvar Integração → toast verde "Integração persistida em:" e volta pra lista.
+
+Resultado: linhas criadas em `pipeliner.TBpipeline` (id 8273) + `pipeliner.TBstage` (id 8373) — `DFAcoes` contém JSON `[{"key":"disparar-sp-anvil","interval":"0","stopWords":[],"stopAction":false,"type":"Query","value":"exec dbo.sp_anvil_teste"}]`. Cadastro via UI **funciona limpo**.
+
+**Achados importantes** (entram em [[hipoteses]] como H14, H15, H16):
+
+- **UI não tem "Executar agora"**. Menu de contexto (`...`) em cada nível só expõe:
+  - Pipeline: "Adicionar estágio"
+  - Stage: "Clonar estágio", "Excluir estágio"
+  - Ação: "Clonar ação", "Excluir ação"
+- **Disparo manual via API** existe (`POST /api/pipeliner/jobs/exec`, `PipelinerController.cs:25-30`) mas o service (`PipelinerService.ExecCommand`) faz proxy via `repository.GetUrl()` → `SELECT DFendereco FROM acesso.TBaplicacao WHERE DFchave='pipeliner'`. Nesta DB `acesso.TBaplicacao` tem **só** a chave `director` (`http://localhost:4310`) — **não há chave `pipeliner`**. Portanto o disparo manual via UI/API está quebrado/não configurado neste ambiente.
+- **Execução automática** depende exclusivamente do serviço Windows do Pipeliner apontando pra esta DB. O usuário afirmou que está rodando. Validação por polling (até 8min após cadastro) — `dbo._anvil_log` deve receber inserção do scheduler.
+
+**Implicação pra Fase 1 real**:
+- Cadastro pela UI: caminho oficial confirmado, trivial pra um pipeline de varredura de XML.
+- Disparo manual: se necessário durante prototipagem, ou (a) cadastrar `pipeliner` em `acesso.TBaplicacao` apontando pra URL do serviço Windows, ou (b) chamar `/api/jobs/exec` direto no serviço Windows (precisa URL/porta dele), ou (c) ajustar `tempoExecucao` baixo (ex: 30s) durante teste pra encurtar ciclo.
+- Pra produção, `tempoExecucao=300` está confirmado como suportado.
+
 ### Atualização 2026-05-14 (final) — Fase 1 não depende do AppBuilder
 
 Análise mais profunda: o **AppBuilder não participa do runtime do Pipeliner**. AppBuilder é apenas a UI de cadastro + ferramenta de empacotamento. Em runtime, o serviço Windows do Pipeliner lê as tabelas `pipeliner.TBpipeline`/`TBstage` do DB destino e executa as actions — sem consultar o AppBuilder.
