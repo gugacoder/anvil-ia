@@ -35,7 +35,7 @@ A descobrir pelo arqueólogo. Seed inicial baseado no que já mapeamos:
 |---|---|---|---|---|---|---|---|---|
 | F001 | infra | Setup wizard de primeira execução | n/a (próprio) | n/a | P0 | done | — | — |
 | F002 | infra | Boot gate + splashscreen | n/a (próprio) | n/a | P0 | done | — | — |
-| F003 | auth | Login híbrido (5 caminhos) | `processa.sdk/Fontes/Processa.Sdk.Auth/` | [[processa-auth-paths]] | P0 | ready-for-test | ✓ 2026-05-15 | — |
+| F003 | auth | Login híbrido (5 caminhos) | `processa.sdk/Fontes/Processa.Sdk.Auth/` | [[processa-auth-paths]] | P0 | accepted | ✓ 2026-05-15 | ✓ 2026-05-15 |
 | F004 | auth | Sessão httpOnly cookie + Redis | derivado | [[processa-auth-paths]] | P0 | todo | — | — |
 | F005 | shell | App layout (sidebar + header) | `react-tools/AppMain/` | TBD | P0 | todo | — | — |
 | F006 | shell | Theme claro/escuro/auto (default auto) | n/a (novo) | n/a | P0 | accepted | ✓ 2026-05-15 | ✓ 2026-05-15 |
@@ -60,6 +60,9 @@ A descobrir pelo arqueólogo. Seed inicial baseado no que já mapeamos:
 | F025 | admin | Cadastro de Aplicações (TBaplicacao) | `appbuilder/website/src/routes/` | TBD | P1 | todo | — | — |
 | F026 | admin | Cadastro de Páginas/Models (TBmodel_pagina) | `appbuilder/website/src/routes/Pipeliner/` | TBD | P1 | todo | — | — |
 | F027 | shell | Anti-FOUC theme bootstrap inline (script em index.html aplica `.dark` antes do mount React) | n/a (novo, derivado de F006) | n/a | P1 | todo | — | — |
+| F028 | auth | Atualizar contrato `processa-auth-paths` (DFnome_empresa → DFnome_fantasia; alinhar com .cs canônico + DDL) | `processa.sdk/Fontes/Processa.Sdk.Api/Settings.cs` | [[processa-auth-paths]] | P1 | todo | — | — |
+| F029 | auth | Alinhar nome do cookie de sessão entre spec e impl (`director_session` vs `director_studio_session`) | n/a (próprio) | [[processa-auth-paths]] | P2 | todo | — | — |
+| F030 | components | FormField — `aria-invalid="true"` quando em estado error (spec [[form-field]] §95) | n/a (próprio) | [[form-field]] | P1 | todo | — | — |
 
 ## Backlog do arqueólogo
 
