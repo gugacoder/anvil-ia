@@ -118,3 +118,27 @@ Smith refez sanitização de erro mssql após `[ui-tester] fail` em C4 (erro do 
 **MISSION/PERSONA check**: bridge AWS é exatamente o tipo de integração on-prem↔nuvem que vive no escritório de CD/varejo BR — sync de cadastros (fornecedores, veículos, docas, feriados) entre o ERP local do tenant e o portal AWS de agendamento. Refit de sanitização de erro (não vazar `172.27.0.121\SQL2k19` para o usuário) é melhoria real sobre o legado (que `Console.WriteLine(ex.Message)` direto). Vibe check: encaixa em operador do CD que aperta "Enviar Fornecedores" e quer feedback claro quando falha.
 
 **Impacto no manifest**: F024 `Status=accepted`, `Accepted=✓ 2026-05-15`. Adicionadas F048 (P1) e F049 (P1). F024 fecha bloco integrations-core junto com F023. Próximos P0 da fila: F039/F040 (inventário eval/params — pré-requisito para remoção de `eval` no engine) e F043 (seed models — pré-requisito para validar F012-F022 sem stub).
+
+### F039 — Inventário TBfuncao_model → accepted
+
+**Decisão**: aceitar. Inventário documental completo, sem ciclo de UI necessário.
+
+**Critérios auditados**:
+
+1. **Contrato seguido** ([[tbfuncao-model]]): contrato publicado pelo archaeologist cobre DDL canônica (4 colunas, sem FK, sem unique, coluna `DFid_pagina` historicamente dropada), consumo backend (`GenericPagesRepository.cs:26-34`, `ModelRepository.cs:52-58` + DELETE em cascata, proc XML alternativa quebrada referenciando coluna morta), consumo frontend (`GenericPage.js:61-98` faz o `eval`, `GenericForm.js:390-712` chama em 3 pontos — submit, action field, modal aninhado), escopo léxico do `eval` documentado (14 identificadores incluindo `genericProps` array posicional 0..14 — pior tipo de API documentado), pipeline completo (ref não state, replaceAll textual sem AST, retorno descartado, catch silencioso), padrões identificados (4/4 usam `genericProps`, 2/4 manipulam DOM direto, 2/4 bypassam `useFetch`), riscos (RCE-by-design, reorder de `genericProps` quebra silenciosamente tudo, encoding mojibake no seed vai cru para `eval`), relações com [[engine-schema-driven]] e [[obter-model-pagina]].
+
+2. **Componente do design system**: N/A justificado — F039 é inventário (escavação) documental. Sem UI própria. Idem critério aplicado em F024 (bridge backend) e em outras features de catálogo.
+
+3. **Caso real ui-tester**: substituído por **probe SQL real** contra **148 bases** da Área 52 (`172.27.0.121\SQL2k19`, todas `DB%` online em 2026-05-15). `Tested=✓ (inventário documental)` é o sinal correto para feature de escavação. Resultado: **216 linhas totais distribuídas em 53 bases com dados** (95 bases com a tabela vazia), **exatamente 4 funções únicas** replicadas via seed `insert_pagina_*_agendamento.sql` do app `agent` — `handle_submit_gerenciar_agendamento`, `handle_update_gerenciar_agendamento`, `handle_cancelar_agendamento`, `handle_submit_realizar_agendamento`. Tamanhos 806–4773 chars. Amostras citadas em `DBengenharia_Director_RC` com schema canônico. Padrões heurísticos contados (4/4 `genericProps`, 3/4 `loggedUserData`, 2/4 `setTimeout`, 2/4 `document.*`, 2/4 `window.*`, 2/4 `fetch(` global, 0/4 `eval`/`new Function` aninhado, 0/4 libs externas). Dado empírico, não fixture.
+
+**Descoberta-chave**: a premissa "cliente cadastra handler arbitrário em produção via AppBuilder" **não está exercida**. **Zero clientes finais** cadastraram funções próprias — todas as 216 linhas são réplicas idênticas de 4 funções escritas pela própria equipe Processa, seed-adas via SQL. A justificativa de manter `eval` ou montar sandbox QuickJS-wasm completo (opções A/B) cai por terra à luz desse dado.
+
+**Decisão de estratégia: opção C (reescrita declarativa) → enfileirada como F050**.
+
+Conclusão descritiva do archaeologist alinhada com curator+smith: as 4 funções caem em **2 templates declarativos** — `submit-com-validacao` (cobre `handle_cancelar_agendamento`) e `submit-com-validacao-e-comprovante` (cobre as outras 3). Modais HTML inline (`document.createElement`/`window.open`) viram **componente nomeado** controlado pelo React (resolve risco alta-severidade do contrato: render fora do React tree, sobrevive a navegação). Nenhuma das 4 funções usa `eval` aninhado, `new Function`, bibliotecas externas, `modelRef` ou `useAclHook` — só APIs nativas do browser e `genericProps` — portanto a primitiva declarativa não precisa absorver complexidade arbitrária.
+
+F050 (P0) será feature de impl dedicada: schema das 2 primitivas, componente de modal de comprovante no design system, plug no engine (`useGenericFunction` resolve no map de primitivas em vez de `eval`), testes com payload real das 4 funções. Quando F050 entregar, **o eval em `executeGenericFunctions` morre** — um dos 3 pontos de `eval` que o Studio precisa eliminar (os outros são F040 `TBmodel_parametro.DFvalor` e `button.externalAction`).
+
+**Por que não esperar F040 (inventário de TBmodel_parametro) para decidir conjunto**: F040 cobre interpolação `dParamX` em URL/body, escopo independente. F050 não depende de F040. Cada ponto de `eval` morre na sua feature.
+
+**Impacto no manifest**: F039 `Status=accepted`, `Accepted=✓ 2026-05-15`. Adicionada F050 (P0, render) — reescrita declarativa em 2 primitivas. Próximos P0 da fila: F040 (inventário params), F043 (seed models), F050 (impl opção C).
