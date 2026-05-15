@@ -6,12 +6,12 @@ sources:
   - "calendar/notes/2026-05-15.md"
 created: 2026-05-15
 updated: 2026-05-15
-status: stub
+status: superseded
 ---
 
 # Contrato: `acesso.TBmodel_pagina`
 
-> **STATUS: stub** — placeholder criado durante a montagem do time. Aguarda escavação completa pelo [[archaeologist]]. Não consumir como verdade definitiva enquanto este status for `stub`.
+> **STATUS: superseded** — este stub foi substituído pelo contrato canônico [[obter-model-pagina]] (que documenta a tabela `TBmodel_pagina`, as tabelas satélite `TBfuncao_model`/`TBmodel_parametro`, e a proc + endpoint que as expõem). O dispatch runtime que esta nota previa estar em "DFtipo" vive em [[engine-schema-driven]] — e **não** é por `DFtipo` (coluna que não existe), mas por presença de chaves no JSON do `DFvalor`.
 
 Tabela do schema `acesso.*` do `DBdirector` que armazena a **definição de cada tela renderizada** pelo `<AppMain />` do [[react-tools]]. Cada linha descreve um "model" — i.e. uma view com seu tipo, sua proc-fonte, suas configurações específicas. É **o coração** do metamodelo schema-driven. O [[director-studio]] precisa ler essas linhas e renderizar telas a partir delas.
 
