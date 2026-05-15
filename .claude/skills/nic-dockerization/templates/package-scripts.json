@@ -1,0 +1,12 @@
+{
+  "_comment": "Snippet de scripts npm pra dockerization. Cole dentro do objeto `scripts` do seu package.json.",
+  "scripts": {
+    "platform:up": "node infra/scripts/platform.mjs up -d",
+    "platform:down": "node infra/scripts/platform.mjs down",
+    "platform:ps": "node infra/scripts/platform.mjs ps",
+    "platform:logs": "node infra/scripts/platform.mjs logs -f",
+    "docker:up": "dotenv -- docker compose -f infra/docker-compose.yml up -d",
+    "docker:down": "dotenv -- docker compose -f infra/docker-compose.yml down",
+    "docker:logs": "dotenv -- docker compose -f infra/docker-compose.yml logs -f"
+  }
+}

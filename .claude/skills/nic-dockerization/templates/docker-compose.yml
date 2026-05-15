@@ -1,0 +1,73 @@
+# Compose de PROD/STAGING: apps + include platform.
+#
+# Uso:
+#   npm run docker:up
+#   npm run docker:down
+#   npm run docker:logs
+#
+# Em dev NAO usar este arquivo — usar `npm run platform:up` + `npm run dev`.
+#
+# Padrao `image + build`: puxa do registry se imagem existir, builda local se nao.
+# Permite flexibilidade (CI pusha; servidor puxa; dev pode buildar sem registry).
+
+name: ${PROJECT}-${ENVIRONMENT}
+
+include:
+  - docker-compose.platform.yml
+
+services:
+
+  frontend:
+    image: ${IMAGE_REGISTRY}/<PROJECT>/frontend:${IMAGE_TAG}
+    build:
+      context: ..
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        # Args que Vite precisa em build-time (VITE_* viram constantes do bundle)
+        PUBLIC_PORT: ${PUBLIC_PORT}
+        FRONTEND_PORT: ${FRONTEND_PORT}
+        VITE_COLOR_THEME: ${VITE_COLOR_THEME}
+        ENVIRONMENT: ${ENVIRONMENT}
+    restart: unless-stopped
+    environment:
+      FRONTEND_PORT: ${FRONTEND_PORT}
+    networks:
+      internal:
+        aliases: [frontend.internal]
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  backend:
+    image: ${IMAGE_REGISTRY}/<PROJECT>/backend:${IMAGE_TAG}
+    build:
+      context: ..
+      dockerfile: apps/backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      PUBLIC_PORT: ${PUBLIC_PORT}
+      JWT_SECRET: ${JWT_SECRET}
+      POSTGRES_HOST: postgres.internal
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      REDIS_HOST: redis.internal
+      REDIS_PORT: 6379
+    networks:
+      internal:
+        aliases: [backend.internal]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:${PUBLIC_PORT}/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  internal:
+    driver: bridge

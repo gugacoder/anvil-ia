@@ -1,0 +1,49 @@
+# Template — apps/frontend/Dockerfile
+# Multi-stage: node builder -> caddy serve dist
+#
+# Build args (passados via docker-compose ou --build-arg):
+#   BACKEND_PORT, FRONTEND_PORT       — usados pelo Vite no build
+#   VITE_COLOR_THEME, VITE_AGENT_ID   — vars VITE_* que viram constantes no bundle
+#   ENVIRONMENT                       — exposto como import.meta.env
+
+# syntax=docker/dockerfile:1.7
+
+FROM node:20-alpine AS builder
+WORKDIR /app
+
+ARG BACKEND_PORT
+ARG FRONTEND_PORT
+ARG VITE_COLOR_THEME
+ARG VITE_AGENT_ID
+ARG ENVIRONMENT=production
+
+ENV BACKEND_PORT=$BACKEND_PORT
+ENV FRONTEND_PORT=$FRONTEND_PORT
+ENV ENVIRONMENT=$ENVIRONMENT
+
+# Lockfile e package.jsons primeiro pra cachear npm ci
+COPY package.json package-lock.json ./
+COPY apps/backend/package.json ./apps/backend/
+COPY apps/frontend/package.json ./apps/frontend/
+COPY packages/ui/package.json ./packages/ui/
+# vendor/ se houver tarballs locais (.tgz referenciados em package.json)
+COPY vendor ./vendor
+
+RUN npm ci
+
+# Codigo
+COPY packages ./packages
+COPY apps/frontend ./apps/frontend
+
+# Vite envDir lê .env do repo root; vars VITE_* precisam estar la pra entrar no bundle.
+# Escrevemos um .env transiente so pro build.
+RUN printf "VITE_COLOR_THEME=%s\nVITE_AGENT_ID=%s\nBACKEND_PORT=%s\nFRONTEND_PORT=%s\nENVIRONMENT=%s\n" \
+	"$VITE_COLOR_THEME" "$VITE_AGENT_ID" "$BACKEND_PORT" "$FRONTEND_PORT" "$ENVIRONMENT" > .env
+
+RUN npm run build -w @scaffold/frontend
+
+# Runtime: Caddy serve a dist
+FROM caddy:alpine AS runtime
+
+COPY --from=builder /app/apps/frontend/dist /srv/app
+COPY infra/docker/frontend/Caddyfile /etc/caddy/Caddyfile

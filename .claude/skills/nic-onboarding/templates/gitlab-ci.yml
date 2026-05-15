@@ -1,0 +1,102 @@
+# Template — .gitlab-ci.yml
+#
+# 2 stages: build (no runner) -> deploy (SSH no ia-web).
+# Filtrado pela branch <BRANCH> (substituir ao copiar).
+#
+# Vars usadas — TODAS herdadas do GitLab group (admin setou uma vez):
+#   DOCKER_REGISTRY_URL/USER/PASSWORD  (registry de deploy)
+#   SSH_DEPLOY_KEY                      (FILE — chave priv -> ia-web)
+#   VPS_IAWEB_HOST/USER/DEPLOY_FOLDER   (alvo do deploy)
+#
+# Pra ver as vars herdadas: GitLab → projeto → Settings → CI/CD → Variables.
+# (vars com fonte = "Group: NIC" sao herdadas; nao tem nada por projeto)
+
+stages:
+  - build
+  - deploy
+
+variables:
+  # Usa docker.sock do host (runner sem privileged → DinD nao funciona)
+  DOCKER_HOST: unix:///var/run/docker.sock
+  # Build args do frontend (vars VITE_*); promover a CI vars quando precisar
+  ARG_BACKEND_PORT: "4000"
+  ARG_FRONTEND_PORT: "4001"
+  ARG_VITE_COLOR_THEME: "blue"
+  ARG_VITE_AGENT_ID: "system.<PROJECT>"
+  ARG_ENVIRONMENT: "production"
+
+build:
+  stage: build
+  tags: [docker, compose, build]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "<BRANCH>"
+  image: docker:26
+  script:
+    - REGISTRY_HOST=$(echo "$DOCKER_REGISTRY_URL" | sed -E 's|https?://||; s|/.*||')
+    - FE_IMG="${REGISTRY_HOST}/<PROJECT>/<PROJECT>-frontend"
+    - BE_IMG="${REGISTRY_HOST}/<PROJECT>/<PROJECT>-backend"
+    - SHA_TAG="<BRANCH>-${CI_COMMIT_SHORT_SHA}"
+    - LATEST_TAG="<BRANCH>-latest"
+    - echo "===== Login em $REGISTRY_HOST ====="
+    - echo "$DOCKER_REGISTRY_PASSWORD" | docker login "$REGISTRY_HOST" -u "$DOCKER_REGISTRY_USER" --password-stdin
+    - echo "===== Build frontend ====="
+    - |
+      docker build \
+        -f apps/frontend/Dockerfile \
+        --build-arg BACKEND_PORT="$ARG_BACKEND_PORT" \
+        --build-arg FRONTEND_PORT="$ARG_FRONTEND_PORT" \
+        --build-arg VITE_COLOR_THEME="$ARG_VITE_COLOR_THEME" \
+        --build-arg VITE_AGENT_ID="$ARG_VITE_AGENT_ID" \
+        --build-arg ENVIRONMENT="$ARG_ENVIRONMENT" \
+        -t "${FE_IMG}:${SHA_TAG}" -t "${FE_IMG}:${LATEST_TAG}" .
+    - docker push "${FE_IMG}:${SHA_TAG}"
+    - docker push "${FE_IMG}:${LATEST_TAG}"
+    - echo "===== Build backend ====="
+    - |
+      docker build \
+        -f apps/backend/Dockerfile \
+        -t "${BE_IMG}:${SHA_TAG}" -t "${BE_IMG}:${LATEST_TAG}" .
+    - docker push "${BE_IMG}:${SHA_TAG}"
+    - docker push "${BE_IMG}:${LATEST_TAG}"
+    - echo "PUSHED ${FE_IMG}:${SHA_TAG} e ${BE_IMG}:${SHA_TAG}"
+
+deploy:
+  stage: deploy
+  tags: [docker, compose, build]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "<BRANCH>"
+  needs: [build]
+  image: alpine:3.19
+  before_script:
+    - apk add --no-cache openssh-client
+    - mkdir -p ~/.ssh && chmod 700 ~/.ssh
+    # File var de chave privada perde newline final / ganha CRLF — normalize
+    - tr -d '\r' < "$SSH_DEPLOY_KEY" > /tmp/deploy_key
+    - printf '\n' >> /tmp/deploy_key
+    - chmod 600 /tmp/deploy_key
+    - ssh-keyscan -H "$VPS_IAWEB_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+  script:
+    - |
+      ssh -i /tmp/deploy_key -o IdentitiesOnly=yes "${VPS_IAWEB_USER}@${VPS_IAWEB_HOST}" \
+        DEPLOY_DIR="${VPS_IAWEB_DEPLOY_FOLDER}/<PROJECT>" \
+        BRANCH="<BRANCH>" \
+        bash -s << 'EOSSH'
+        set -e
+        cd "$DEPLOY_DIR"
+        echo "===== git pull ====="
+        git fetch origin "$BRANCH"
+        git reset --hard "origin/$BRANCH"
+        echo "===== check .env ====="
+        if [ ! -f .env ]; then
+          echo "ERRO: .env nao existe em $DEPLOY_DIR. Operador precisa criar (cp .env.production.example .env e preencher)."
+          exit 2
+        fi
+        echo "===== docker compose pull ====="
+        docker compose -f infra/docker-compose.yml --env-file .env pull
+        echo "===== docker compose up -d ====="
+        docker compose -f infra/docker-compose.yml --env-file .env up -d
+        echo "===== restart caddy (pickup mudancas em arquivo bind-mounted) ====="
+        docker compose -f infra/docker-compose.yml --env-file .env restart caddy
+        echo "===== status ====="
+        docker compose -f infra/docker-compose.yml --env-file .env ps
+      EOSSH

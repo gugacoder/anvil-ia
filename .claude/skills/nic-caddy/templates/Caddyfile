@@ -1,0 +1,37 @@
+# Template Caddyfile — proxy reverso interno pra SPA + API.
+#
+# Substituicoes antes de aplicar:
+#   - {$BACKEND_HOST}, {$BACKEND_PORT} — vem do .env via compose
+#   - {$FRONTEND_HOST}, {$FRONTEND_PORT} — idem
+#   - {$PUBLIC_PORT} — porta unica de publicacao (ver skill `dockerization`)
+#
+# Rotas aqui refletem o caso canonico. Adapte ao seu projeto.
+# Atencao: o matcher `*` em `redir` eh necessario pra evitar parser ambiguity
+# (ver references/gotchas.md).
+
+:{$PUBLIC_PORT} {
+    # Backend API routes
+    handle /api/v1/* {
+        reverse_proxy {$BACKEND_HOST}:{$BACKEND_PORT}
+    }
+
+    # Backend health
+    handle /health {
+        reverse_proxy {$BACKEND_HOST}:{$BACKEND_PORT}
+    }
+
+    # Frontend (SPA under /app)
+    handle /app/* {
+        reverse_proxy {$FRONTEND_HOST}:{$FRONTEND_PORT}
+    }
+
+    # /app sem barra → /app/ (matcher * explicito evita parser ambiguity)
+    handle /app {
+        redir * /app/ permanent
+    }
+
+    # Raiz → /app/
+    handle / {
+        redir * /app/ permanent
+    }
+}

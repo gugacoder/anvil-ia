@@ -1,0 +1,14 @@
+# DEV overlay — expoe portas de infra pro host, so em dev.
+#
+# Carregado automaticamente pelo platform.mjs (via `npm run platform:up`).
+# Em staging/prod este arquivo NAO e carregado (docker-compose.yml nao inclui).
+
+services:
+
+  postgres:
+    ports:
+      - "${POSTGRES_PORT}:5432"
+
+  redis:
+    ports:
+      - "${REDIS_PORT}:6379"

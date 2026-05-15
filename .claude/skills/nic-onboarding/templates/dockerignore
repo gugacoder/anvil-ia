@@ -1,0 +1,52 @@
+# Template — .dockerignore (raiz do repo)
+# Reduz o build context enviado pro daemon, melhora performance e seguranca.
+
+# node
+**/node_modules
+**/.npm
+
+# build outputs
+**/dist
+**/dist-ssr
+**/.tanstack
+
+# env / secrets
+.env
+.env.keys
+.env.local
+**/*.local
+
+# logs / tmp
+**/.tmp
+**/logs
+**/*.log
+
+# docker runtime data
+infra/data
+data
+
+# git / ci / editor
+.git
+.gitlab-ci.yml
+.vscode
+.idea
+
+# tests artifacts
+tests/test-results
+tests/playwright-report
+
+# docs / kb (nao precisam na imagem)
+kb
+research
+sprints
+assets
+guides
+.claude
+.systems
+.mcp.json
+AGENTS.md
+CLAUDE.md
+
+# os
+.DS_Store
+Thumbs.db
