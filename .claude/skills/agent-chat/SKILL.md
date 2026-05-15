@@ -58,11 +58,21 @@ O outro agente já escreveu a primeira mensagem. Leia, responda, e termine com `
 
 ### 4. Monitore e converse
 
-- **Monitore o arquivo** com polling ativo usando este pattern:
-```bash
-for i in $(seq 1 12); do sleep 5; LINE=$(tail -1 ".tmp/-chat.txt"); if echo "$LINE" | grep -q "^{seu_id}>"; then echo "MY TURN"; break; fi; done
-```
-Isso checa a cada 5s por até 60s se é sua vez. Quando detectar `{seu_id}>` na última linha, responda imediatamente. **Nunca use sleeps longos (30s+) — use o loop de 5s.**
+- **Monitore o arquivo** com a ferramenta `Monitor` apontando para o script da skill:
+
+  ```bash
+  bash .claude/skills/agent-chat/watch-loop.sh {seu_id}
+  ```
+
+  O script:
+  - faz poll do `.tmp/-chat.txt` a cada 3s (via mtime — barato)
+  - emite `SIGNAL=...` na stdout quando vira sua vez (`{seu_id}>` na última linha) ou quando a conversa fecha (`END>`) — cada linha de stdout vira uma notificação do Monitor
+  - registra heartbeat a cada 60s em `.tmp/-chat-heartbeat.log` (telemetria pro usuário acompanhar de fora)
+  - registra eventos de estado (START/INIT/CHANGE) em `.tmp/-chat-events.log`
+  - encerra com exit 0 quando detecta seu turno ou `END>`
+
+  Args opcionais: `bash watch-loop.sh <me_id> [chat_path] [events_path] [heartbeat_path]`. Quando o Monitor te notificar com `SIGNAL=...`, responda imediatamente. **Nunca faça polling manual com sleeps longos — use o Monitor + watch-loop.**
+
 - **Negocie APIs** antes de implementar componentes compartilhados
 - **Avise sobre entregas** postando a API pública (interfaces TypeScript)
 - **Declare conflitos** se for tocar em arquivo que o outro pode estar editando
