@@ -142,3 +142,41 @@ F050 (P0) será feature de impl dedicada: schema das 2 primitivas, componente de
 **Por que não esperar F040 (inventário de TBmodel_parametro) para decidir conjunto**: F040 cobre interpolação `dParamX` em URL/body, escopo independente. F050 não depende de F040. Cada ponto de `eval` morre na sua feature.
 
 **Impacto no manifest**: F039 `Status=accepted`, `Accepted=✓ 2026-05-15`. Adicionada F050 (P0, render) — reescrita declarativa em 2 primitivas. Próximos P0 da fila: F040 (inventário params), F043 (seed models), F050 (impl opção C).
+
+### F043 — Seed de models portal-director → accepted
+
+**Decisão**: aceitar. Feature de infra/seed sem superfície UI; smith replicou o caminho real de consumo contra base real Area 52.
+
+**Critérios auditados**:
+
+1. **Contrato seguido** ([[obter-model-pagina]]): 9 models inseridos em `acesso.TBmodel_pagina` (DBdirector_imperial_logistica_29, ids 13..21) com schema válido do engine schema-driven — chaves canônicas `genericPageTitle`/`genericPageDescription`/`filtro.model[]`/`datagrid` com `headers`/`gridActions`/`limits`/`genericform.model[][]` com `ctype`/`maskType`. Zero `dParam*`/`funcoes` (pré-empta `eval` antes de F040/F050/F051 aterrissarem). Schema-aware: tabela sem `DFid_aplicacao` na Area 52 (cobre F042 cross-app fallback). Idempotente (`IF NOT EXISTS / ELSE UPDATE`). Reversível por `DELETE WHERE DFchave_pagina LIKE 'portal-director.%'`.
+
+2. **Componente do design system**: N/A justificado — F043 é seed de dados, não tem UI própria. Mesmo critério aplicado a F039/F040 (inventários documentais) e a F024 (bridge backend pura).
+
+3. **Caso real ui-tester**: substituído por **smoke replay do caminho real de consumo**. Script `.tmp-smoke.mjs` replica `fetchModelFromDb` de `apps/api/src/routes/model.ts` (Caso B sem `DFid_aplicacao`) contra a Area 52 — não é fixture, é o mesmo SQL e mesma lógica de parse que F010/F011 vão executar em produção. Resultado: 9/9 pages portal-director têm match em `TBmodel_pagina`, JSON parseável em 100%, dispatch do engine detecta renderer correto (5×(filtro+datagrid) + 4×(genericform)). Dado empírico contra base real. Dispensa ui-tester formal porque a feature não renderiza UI — o caminho que ela existe para destravar é o consumo do model, e esse caminho foi exercitado.
+
+**Por que não exigir ui-tester formal**: ui-tester valida componente do design system contra contrato + caso real. F043 não tem componente. Exigir ui-tester aqui seria cerimônia que cobre o vazio. O smoke do smith é mais rigoroso para o tipo de feature: replica o fetch real em vez de testar UI que não existe. **Critério registrado para reuso**: features de **infra/seed/inventário sem superfície UI** dispensam ui-tester formal quando o smith demonstra que o caminho de consumo da feature foi exercitado contra base real (não mock/fixture). Mesmo critério já aplicado em F039 e F040 (inventários documentais).
+
+**Ressalvas → features novas (não bloqueantes)**:
+
+1. **Procs não instaladas**: `gridActions`/`api` dos 9 models referenciam `acesso.sp_consultar_*` (5 pages) e `acesso.sp_persistir_*` (4 pages). Procs **existem** em `sources/engenharia--fabrica--sql--portal-director/portal.director/programacao/acesso.*` mas não estão instaladas em `DBdirector_imperial_logistica_29`. Sem elas, F010/F011 contra as 9 pages portal-director conseguem dispatch+parse (que é o que F043 destrava) mas falham ao listar/persistir (proc-not-found). → **Nova feature F052** (P0, infra): catalogar conjunto mínimo de procs referenciadas, decidir dependências transitivas, aplicar via script idempotente análogo a F043. F052 é o segundo elo da corrente que destrava ui-tester end-to-end das features render P0 já aceitas.
+
+2. **`dParam*`/`funcoes` excluídos do seed por design**: as 4 expressões `(function(){...localStorage...})()` originais do `consultar_agendamento` ficam fora; F051 (interpolador `{path}` declarativo, opção A) e F050 (2 primitivas declarativas, opção C) reescrevem essas expressões. Quando F051 entregar, este seed pode ser estendido sem refactor — basta adicionar `dParam` literais no JSON do model como `"{user.cnpj}"`. Não é débito de F043, é sequenciamento correto: seed não pode introduzir `eval` antes da feature que o elimina.
+
+**Critério não-aplicável**: design system component (N/A justificado acima — F043 é seed de dados, sem UI própria).
+
+**MISSION/PERSONA check**: F043 não tem vibe de PERSONA — é trilho de infra que destrava a vibe das features render P0 (F010/F011 ganham casos reais portal-director: cadastros de Acessos/Usuários/Fornecedor + Configurações). Sem F043, ui-tester de F010/F011 fica limitado ao único model `wms.*` que coincidiu no DB de teste; com F043, exercita o menu canônico PROCESSA real.
+
+**Impacto no manifest**: F043 `Status=accepted`, `Accepted=✓ 2026-05-15`. Adicionada F052 (P0, infra). F043 destrava ui-tester end-to-end de F010/F011 para dispatch+parse contra menu PROCESSA real; F052 destrava para execução de gridAction/api real.
+
+## Política transversal — Aceitação de features sem UI
+
+**Decidido em 2026-05-16, aplicável retroativamente a F039/F040/F043 e prospectivamente a F052 e futuras**:
+
+Features de **infra**, **seed**, **inventário documental** ou **bridge backend pura** — que por natureza não têm componente do design system — dispensam ui-tester formal quando:
+
+1. **Contrato existe** e o smith demonstra adesão por leitura cruzada (não execução de UI).
+2. **Caminho de consumo real foi exercitado**: smith replica em smoke próprio o exato code path que features downstream vão consumir, contra base/sistema real (não mock/fixture).
+3. **N/A do design system é justificado por escrito** no scope-decisions e no manifest (campo `Accepted`).
+
+Esse padrão **não** se aplica a renderers (F010-F022), shell (F005-F008), auth (F003-F004) ou qualquer feature com superfície UI — ui-tester é mandatório para essas.
