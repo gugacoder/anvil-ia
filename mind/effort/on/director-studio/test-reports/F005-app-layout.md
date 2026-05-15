@@ -1,37 +1,39 @@
 # Test report — F005 App layout (sidebar + header)
 
-**Data**: 2026-05-15
-**Resultado**: blocked
-**Ambiente**: localhost:3000 (Caddy proxy)
-**Caso real testado**: tentativa de login com PROCESSA/99 (não chegou ao shell)
+**Data**: 2026-05-15 (retry após API online)
+**Resultado**: blocked (parcial pass — viewport mobile não testável)
+**Ambiente**: localhost:3000 (Caddy proxy) + API Hono em :3001
+**Caso real testado**: PROCESSA / 99 → IMPERIAL LOG (codEmpresa=1, path=internal-db)
 
-## Bloqueio
+## Sumário por critério
 
-O front (Caddy + Vite) responde 200 em `/` e `/login`, mas todo o backend Hono (`/api/*`, `/healthz`) retorna **502 Bad Gateway**.
+| # | Critério | Resultado | Notas |
+|---|---|---|---|
+| 1 | Login PROCESSA/99 → /app | ✓ pass | `POST /api/auth/login` 200 com cookie `director_session`; redirect para `/app`; AppShell renderiza (header com busca/notificações, sidebar com Inicio + avatar, main). |
+| 2 | Mobile (<768px): header + content + shortcut-bar bottom; sidebar oculta; drawer-up | — blocked | `resize_window` aceita comando mas viewport real permanece em 1536×730 (`innerWidth=1536`); patches em `matchMedia` + `innerWidth` + dispatch `resize` não re-disparam o hook responsivo. Nenhum elemento com classe/atributo `shortcut`, `drawer`, `mobile-menu` foi encontrado no DOM. **Não é possível afirmar pass nem fail empíricamente.** |
+| 3 | Desktop (≥768px): sidebar persistente + toggle rail/expanded + persist localStorage | ✓ pass | `<aside>` presente; botão "Recolher navegação" → estado `rail`; reload mantém `rail` (localStorage chave `director-studio:sidebar-collapsed` confirmada); botão muda para "Expandir navegação" no estado rail. |
+| 4 | AvatarMenu dropdown com ThemeToggle + Logout | ✓ pass | Botão "Conta de PROCESSA" abre popover Radix contendo: `[menuitem] Perfil`, `[menuitem] Sair`, `[button] Tema: automatico`. ThemeToggle dentro do popover (não como menuitem, mas dentro do mesmo container — alinhado com `[[sidebar]] §39` que cita "perfil, tema, logout"). |
+| 5 | Logout limpa cookie + redireciona /login | ✓ pass | Antes: `GET /api/auth/me` → 200. Click em "Sair" → redireciona `/login` + `GET /api/auth/me` → 401. Cookie invalidado. |
+| 6 | useBlocking (se houver demo) | n/a | Sem gatilho visível no shell pós-login. Conforme instrução, não bloqueante. |
+| 7 | Regressão F006: tema cicla | ✓ pass | Click no botão "Tema: automatico" (via PointerEvent realista) muda label para "Tema: escuro". F006 regression preservada. |
+| 8 | Console limpo | ✓ pass | Apenas warning esperado: `You have Reduced Motion enabled on your device. Animations may not appear as expected.` (motion.dev troubleshooting). Nenhum erro de aplicação. |
 
-Evidências:
+## Evidências
 
-- `curl http://localhost:3000/healthz` → `502`
-- `curl -X POST http://localhost:3000/api/auth/login -d '{"username":"PROCESSA","password":"99"}'` → `502 Bad Gateway` (Server: Caddy, Content-Length: 0)
-- `docker ps` lista apenas `director-studio-redis` (healthy) e `director-studio-caddy` (up). **Container/processo da API Hono ausente.**
-- Caddyfile (`infra/docker/caddy/Caddyfile`) confirma roteamento `/api/*` e `/healthz` → `{$API_HOST}:{$API_PORT}`, ambos sem responder.
+- `POST /api/auth/login` 200 + `Set-Cookie: director_session=...; HttpOnly; SameSite=Lax`
+- `GET /api/auth/me` 200 (logado) → 401 (após logout)
+- localStorage `director-studio:sidebar-collapsed`: `"expanded"` → click toggle → `"rail"` → reload → permanece `"rail"`
+- Aria-label avatar: `aria-haspopup="menu"`, abre via `Enter` no botão focado
+- Popover content: `Perfil` (menuitem), `Sair` (menuitem), `Tema: automatico` (button)
 
-Comportamento observado no Studio: login form renderiza, ao submeter PROCESSA/99 a UI exibe `"Erro no servidor. Tente novamente em instantes."` (consistente com 502 do POST `/api/auth/login`).
+## Bloqueio remanescente — C2 (mobile)
 
-## Cenários planejados (não executados)
+O test harness (Chrome MCP) aceita `resize_window` (chrome janela OS) mas a viewport DevTools/renderer permanece 1536×730. Hooks de responsividade do React não foram re-disparados pelos workarounds (`Object.defineProperty` em `innerWidth`, `matchMedia` mock, `dispatchEvent('resize')`). Não há como, no ambiente atual, observar o branch mobile do AppShell.
 
-| # | Cenário | Estado |
-|---|---|---|
-| 1 | Login PROCESSA/99 → /app | bloqueado por backend down |
-| 2 | Desktop ≥768px: sidebar persistente + toggle expand/rail + persist `director-studio:sidebar-collapsed` | não alcançado |
-| 3 | Mobile <768px: header sticky + shortcut-bar + drawer-up via menu | não alcançado |
-| 4 | AvatarMenu: ThemeToggle ciclando + Logout | não alcançado |
-| 5 | Logout → POST /api/auth/logout → /login | não alcançado |
-| 6 | useBlocking / BlockingOverlay | não alcançado |
-| 7 | Regressão F006: tema cicla via toggle + atalho D | não alcançado |
-| 8 | Console limpo (exceto reduced-motion warning) | parcial — apenas warning de motion observado pré-submit |
+**O que foi observado em 1536px (desktop):** sem `data-shortcut-bar`, sem nav com `aria-label*="atalho"`, sem `class*="shortcut"`. Isso é **esperado** em desktop (spec `app-shell.md` linha 74: "Sem shortcut bar — atalhos do mobile, no desktop, viram pinos no avatar menu ou itens fixos da sidebar"). Não confirma nem refuta a existência do componente mobile.
 
 ## Próxima ação
 
-- Smith/infra: subir API Hono do Director.Studio (porta/host definidos em `API_HOST`/`API_PORT` que o Caddyfile consome). Sem ele, F005 não pode ser validado.
-- Reabrir teste após `/healthz` retornar 200 e `POST /api/auth/login` autenticar PROCESSA/99 com 200 + cookie.
+- Validação manual de C2 em browser real com viewport ≤767px (375×812 iPhone, 414×896, 768×1024 tablet boundary). Sem isso, não posso marcar `Tested=✓`.
+- Alternativa: provisionar device emulation real no MCP (CDP `Emulation.setDeviceMetricsOverride`) para retomar este teste em CI.
+- Critérios 1, 3, 4, 5, 7, 8 → pass. Critério 2 → pendente de validação manual.

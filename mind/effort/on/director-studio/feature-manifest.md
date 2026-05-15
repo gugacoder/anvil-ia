@@ -37,7 +37,7 @@ A descobrir pelo arqueólogo. Seed inicial baseado no que já mapeamos:
 | F002 | infra | Boot gate + splashscreen | n/a (próprio) | n/a | P0 | done | — | — |
 | F003 | auth | Login híbrido (5 caminhos) | `processa.sdk/Fontes/Processa.Sdk.Auth/` | [[processa-auth-paths]] | P0 | accepted | ✓ 2026-05-15 | ✓ 2026-05-15 |
 | F004 | auth | Sessão httpOnly cookie + Redis | derivado | [[processa-auth-paths]] | P0 | accepted | ✓ 2026-05-15 | ✓ 2026-05-15 |
-| F005 | shell | App layout (sidebar + header) | `react-tools/AppMain/` | [[app-main]] | P0 | ready-for-test | — | — |
+| F005 | shell | App layout (sidebar + header) | `react-tools/AppMain/` | [[app-main]] | P0 | ready-for-test | ✓ 2026-05-15 (7/8, C2 mobile pendente) | — |
 | F006 | shell | Theme claro/escuro/auto (default auto) | n/a (novo) | n/a | P0 | accepted | ✓ 2026-05-15 | ✓ 2026-05-15 |
 | F007 | shell | Menu hierárquico a partir de `acesso.obter_rotas_aplicacao` | `acesso.obter_rotas_aplicacao.sql` | TBD | P0 | todo | — | — |
 | F008 | shell | ACL por papel × função × página | `acesso.obter_acl_usuario_aplicacao.sql` | TBD | P0 | todo | — | — |
