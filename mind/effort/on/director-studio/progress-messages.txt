@@ -155,3 +155,5 @@
 2026-05-15T23:30:00Z [curator] feature-added: F054 eliminar 3º ponto de eval — button.externalAction (P0, render, conclui trilho eval iniciado em F050+F051)
 2026-05-15T23:30:00Z [curator] priority=P0: F054
 2026-05-15T23:55:00Z [archaeologist] F054 contract published: atlas/concepts/legacy-contracts/button-external-action.md — hypothesis-rejected: nenhum eval em button.externalAction no legado; só 2 evals em react-tools/src (já cobertos por F050+F051); probe Area 52 cross-tenant (15 bases, 133+ models) zero hits de externalAction em TBmodel_pagina/TBfuncao_model; seeds canônicos SQL zero hits. Recomendação: curator fecha F054 como no-op ou converte em F054b auditoria final. Detalhes/citações no contrato.
+2026-05-16T00:30:00Z [curator] note: F054 reclassificada — hipotese de 3o eval rejeitada pelo archaeologist. F054 fica como no-op accepted dependente de F054b (auditoria invariante zero-eval em packages/ui+apps).
+2026-05-16T00:30:00Z [principal] feature-added: F054b auditoria final zero-eval — gates: archaeologist confirma 2 hits totais cobertos por F050/F051 + ui-tester re-roda smokes sem regressao.
