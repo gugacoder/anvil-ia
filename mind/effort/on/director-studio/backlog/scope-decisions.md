@@ -223,6 +223,66 @@ Gap isolado em **F052b** (P1, infra) para o archaeologist investigar 3 hipótese
 
 **Impacto no manifest**: F054 `Status=accepted`, `Accepted=✓ 2026-05-15`. F054b `Status=accepted (redundante c/ F054)`, `Accepted=✓ 2026-05-15 (herdado)`. Linhas anotadas com prefixo de redundância. Trilho de eliminação de `eval` está **completo** (F050 handlers + F051 interpolation + F054/F054b auditoria invariante).
 
+### F012 — Renderer DFtipo=dashboard → accepted
+
+**Decisão**: aceitar. 12/12 ui-tester pass no retry (linha 174 do progress, 2026-05-16T01:30:00Z) contra Area 52 sessão PROCESSA/99 IMPERIAL LOG.
+
+**Critérios auditados**:
+
+1. **Contrato seguido** ([[model-valor-dashboard]]): 11 decisões registradas em [[F012-decisions]], todas alinhadas ao contrato:
+   - Rota separada `/app/dashboard` (não via ModelEngine) — refletindo que dashboard vive em `acesso.TBdashboard`, não `TBmodel_pagina`.
+   - Schema canônico `boxConfig = { widgets: WidgetSlot[] }` em `packages/ui/src/components/dashboard/types.ts`; adapter para forma legada (`boxElements/boxDimension/chartData/quadrante`) fica para F-tbobjetos-dashboard quando F052b destravar.
+   - Recharts em vez de Google Charts (decisão UX spec).
+   - Tokens semânticos como cor de série (proibido hex; paleta `[primary, x-info, x-success, x-warning, x-error, accent-foreground]` reciclada em mod n).
+   - Layout: mobile stack vertical / desktop CSS Grid 2×2 com `colSpan`/`rowSpan`.
+   - Auto-refresh por widget via `setInterval` mínimo 10s, paridade legado `DashBoardBox.js:285-291`; pausa em `document.visibilityState !== 'visible'`, refetch dos vencidos ao voltar (upgrade sobre legado que drenava bateria).
+   - Endpoints `GET /api/dashboards/me` (1 dashboard fake hardcoded com 4 widgets) + `POST /api/dashboards/refresh` (batch tolerante a partial failure, parser de envelope `<Response>`/`<Relatorio>`/JSON/recordset).
+   - Sem persistir snapshot do `data` no `boxConfig` (metadata-only, refetch sempre ao mount).
+   - Switcher redesenhado como segmented control conforme spec dashboard-widget; `linkedSlotId` exposto textualmente, aplicação efetiva da troca fica para wave subsequente.
+   - Sem Google Charts, sem `eval`, sem polling fora do hook, sem `console.log` no backend.
+
+2. **Componente do design system** ([[ui-system/dashboard]] + [[ui-system/dashboard-widget]]): `dashboard-surface.tsx`, 4 widgets (kpi/chart/table/switcher) + `widget-card.tsx` no `packages/ui/src/components/dashboard/`, hook `useDashboard` em `packages/ui/src/hooks/use-dashboard.ts`, rota `/app/dashboard` em `apps/director-studio/src/routes/dashboard.tsx`. Paleta semântica via CSS var, Recharts aceita `var(--token)` literal.
+
+3. **Caso real ui-tester**: retry 12/12 contra Area 52 sessão PROCESSA/99 IMPERIAL LOG (`DBdirector_imperial_logistica_29`). Auto-refresh comprovado (4 POSTs em 49s), aba oculta zero requests, retomada via `visibilitychange` refetcha vencidos em <2s, mobile 1 col a 372px, desktop 2×2. F051/F050/F011/F023 sem regressão.
+
+**Caveat — payload fake hardcoded**:
+
+O payload retornado por `GET /api/dashboards/me` é um dashboard fake de 4 widgets embutido no backend (não veio de `acesso.TBdashboard`). **Aceito por design** pelo mesmo critério aplicado em F009 C3 (fetch-stub) e em F051 (smoke route): o que F012 entrega é o **renderer + endpoint + protocolo de refresh**, não o catálogo de dashboards reais. Catálogo real depende de **F-tbobjetos-dashboard** (catálogo `TBdashboard`) + **F052b** (seed de procs ausentes) — enfileirados. Equivalente funcional ao paralelo F010/F011 ↔ F043/F052/F052b: renderer aceito com smoke, catálogo separado.
+
+Vai virar débito real se o cutover acontecer sem F-tbobjetos-dashboard rodado; o renderer **funcionalmente está completo** mas o operador do CD não verá dashboards próprios sem o catálogo. F-tbobjetos-dashboard fica P1 (mesma família de F052b).
+
+**Adiados declarados em F012-decisions.md** → enfileirados como features dedicadas:
+
+| Adiado | Feature | Priority |
+|---|---|---|
+| Edit mode (drag/resize/configurar/salvar layout) | F055 | P2 |
+| Shared-link `#/dashboard?tkn=...&obj=...` (JWT 30d redesign) | F056 | P1 |
+| `react-grid-layout` (n×m configurável) | F057 | P2 |
+| SSE eventos por widget (substitui setInterval onde possível) | F058 | P2 |
+| Exhibition rotation multi-dashboard | F059 | P2 |
+| Pull-to-refresh mobile (primitivo reusável) | F060 | P2 |
+| Gauge widget (custom SVG arc) | F061 | P2 |
+| Widgets unknown-type (scatter/combo/treemap/geo/sankey) | F062 | P2 |
+| Entrada do menu via `TBpagina` + ACL | F063 | P1 |
+| Mobile stack responsive (débito C8) | F064 | P1 |
+| Catálogo `TBdashboard` (dashboards reais) | F-tbobjetos-dashboard | P1 |
+
+**Priorização das follow-ups**: P1 para itens que (a) destravam cutover funcional (catálogo F-tbobjetos-dashboard, menu F063), (b) são débito explícito de spec compliance (F064 mobile stack), ou (c) já tinham promessa de UX no legado e usuário verá ausência (F056 shared-link). P2 para upgrades sobre legado e formatos de widget pouco usados — entram depois do cutover global.
+
+**Sinais do designer reconhecidos**:
+
+- F-dashboard-sse → enfileirada como F058.
+- F-dashboard-shared-link → enfileirada como F056.
+- F-dashboard-grid-layout → enfileirada como F057.
+- F-dashboard-export → **não enfileirada nesta rodada** — não foi declarada como adiada por smith em F012-decisions, e não há mandato explícito. Designer registra como P3 no signal log; curator só enfileira quando arqueólogo confirmar que existe no legado.
+- Widgets unknown-type (scatter/combo/treemap/geo/sankey) → enfileirada como F062 (P2 condicional a inventário cross-tenant; vira no-op com banner amarelo se nenhum cliente usa).
+
+**Critério não-aplicável**: nenhum. 3/3 critérios cumpridos.
+
+**MISSION/PERSONA check**: dashboard de operação no escritório de CD/varejo BR é vibe central — KPI "Pedidos hoje 128 vs ontem 102", gráfico "Pedidos por turno (Manhã/Tarde/Noite)", tabela "Top motoristas", switcher "Hoje/Semana/Mês" são exatamente o que o supervisor vê numa TV ou no monitor antes do expediente abrir. Recharts com tokens semânticos (em vez de Google Charts com cores hard-coded) é upgrade real — tema escuro funciona, paleta consistente com o resto do app, sem `<iframe>` do Google. Auto-refresh com pausa em aba oculta é melhoria sobre o legado (que drenava bateria). Vibe check: encaixa.
+
+**Impacto no manifest**: F012 `Status=accepted`, `Accepted=✓ 2026-05-15`. Adicionadas F055-F064 (10 follow-ups) + F-tbobjetos-dashboard. Trilho de renderers core (F010 form, F011 grid, F012 dashboard) está com **3/3 aceitos**. Próximos renderers P1: F013 tree, F014 tabs, F015 wizard, F016 filtros, F018 datepicker, F019 powerselect, F020 notifications, F021 modal.
+
 ### Incidente — perda do `progress-messages.txt` em 2026-05-15
 
 Durante o aceite de F054/F054b, o curator usou erroneamente o tool `Write` (sobrescrita total) em vez de append/Edit no `progress-messages.txt`, apagando as ~161 linhas de histórico do arquivo. O arquivo era untracked no git (sem backup recuperável). Reconstrução parcial das linhas 152-160 feita a partir do contexto da sessão e do `scope-decisions.md`; linhas 1-151 permanentemente perdidas. O arquivo agora contém aviso explícito no topo e as linhas novas do aceite F054/F054b.
