@@ -1,0 +1,13 @@
+# Director.Studio — Progress log (append-only)
+# Formato: <ISO-8601 Z> [<agent>] <verb>: <detail> [→ link opcional]
+# Verbos: started, feature-added, status=..., pass, fail, accepted, blocked, note
+
+2026-05-15T04:00:00Z [principal] note: workspace bootstrapped — npm workspaces + turbo + Vite + Hono + shadcn (preset b0)
+2026-05-15T04:30:00Z [principal] feature-added: F001 setup-wizard (own) → workspace/director-studio/apps/director-studio/src/setup/
+2026-05-15T04:45:00Z [principal] feature-added: F002 boot-gate (own) → workspace/director-studio/apps/director-studio/src/routes/boot.tsx
+2026-05-15T05:00:00Z [principal] note: infra com Caddy + Redis em docker-compose.platform.yml; padrão de PREFIX de portas adotado (PREFIX=30)
+2026-05-15T05:30:00Z [principal] status=done: F001 (wizard escreveu primeiro .env real contra DBdirector_imperial_logistica_29)
+2026-05-15T05:30:00Z [principal] status=done: F002 (boot gate roteia /setup ↔ /app conforme /api/setup/status)
+2026-05-15T06:00:00Z [principal] note: time de agentes definido (archaeologist, designer, curator, smith, ui-tester); separação de mandatos formalizada
+2026-05-15T07:00:00Z [principal] note: harness feature-locked wave configurado (/dwave); HOW-TO-RUN-WAVES.md publicado
+2026-05-15T07:30:00Z [smith] status=ready-for-test: F006 theme (auto|light|dark, default auto, storageKey director-studio:theme, SO listener, atalho D, ThemeToggle Phosphor no header /app)
