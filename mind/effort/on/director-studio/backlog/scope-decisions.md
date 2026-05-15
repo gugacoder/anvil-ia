@@ -79,3 +79,42 @@ Append-only. Cada decisão de escopo do curator (aceitar/recusar/dividir/adiar) 
 **MISSION/PERSONA check**: grid sentindo upgrade real do legado — sort/paginação/CSV honrando filtro funcionam contra dados reais de varejo (grupos de trabalho de CD); mobile card-list é entrega nova (legado não tinha); circuit breaker contra DB instável via VPN é robustez nova que o legado não tinha. Vibe check: encaixa em escritório de CD (operador conferindo grupos antes de abrir agendamento).
 
 **Impacto no manifest**: F011 `Status=accepted`, `Accepted=✓ 2026-05-15`. Adicionadas F044 (P1) e F045 (P1). F011 fecha bloco grid-core. Próximos P0: F023 (hub realtime), F024 (bridge AWS), F039/F040 (inventário eval/params), F043 (seed models).
+
+### F024 — Bridge AWS (sync + auth) → accepted
+
+**Decisão**: aceitar. 8/8 ui-tester pass com caso real PROCESSA → IMPERIAL LOG (userId=1, codEmpresa=1) na Área 52.
+
+**Critérios auditados**:
+
+1. **Contrato seguido** ([[portal-aws-bridge]]): `PortalAwsClient` lê `acesso.TBaplicacao(DFchave='portal-aws')` para `DFendereco`+`DFdominio` (com fallback `STUDIO_AWS_URL`/`STUDIO_AWS_DOMAIN`); JWT HS256 com `Consts.SecretKey` via `STUDIO_AWS_JWT_SECRET` e claim única `identidade` = JSON.stringify({Id,Name,CodEmpresa,NomeEmpresa,Domain}); header `Authorization: Bearer <jwt>` + typo legado `ContentType` (sem hífen) preservado; sem retry/timeout custom/circuit-breaker (paridade legado); 10 entidades de sync whitelisted (redes/empresas/centros/departamentos/veiculos/feriados/fornecedores/itens/planos/usuarios) → `EXEC [schema].aws_sincronizar_entidade @entidade, @ids=NULL` → `POST {baseUrl}/api/proc/portal.sincronizar_<entidade>`; proxy genérico `/api/aws/proxy/:proc` com sanitização regex de schema.proc; health endpoint sem chamar AWS.
+
+2. **Componente do design system**: F024 é integração backend pura (bridge cliente HTTP + endpoints API). Sem componente UI próprio — a UI da sincronização (`IntegradorEntidades.jsx`) é renderizada pelo engine F009+F010 quando entrar o cadastro de page. **N/A** corretamente para esta feature.
+
+3. **Caso real ui-tester**: PROCESSA → IMPERIAL LOG (`DBdirector_imperial_logistica_29`, userId=1, codEmpresa=1, Área 52). Não é fixture — base do tenant real com seed legado de `acesso.TBaplicacao(portal-aws)` apontando 127.0.0.1:5100.
+
+**Cenários cobertos pelo ui-tester**:
+
+- **C1 health 200** env-fallback `hasJwtSecret:true`.
+- **C2 401** anon sync (sessão obrigatória).
+- **C3 400** invalid-entidade (fora da whitelist).
+- **C4 503 db-unavailable** (foco do refit): `DB_HOST=10.99.99.99` + cookie válido → body `{ok:false, error:"db-unavailable", message:"DB local indisponível — verifique conexão com SQL Server."}` **sem host/porta/instância no payload**; log interno preserva `ConnectionError code=ETIMEOUT host=10.99.99.99:1433` (sanitização correta — observabilidade interna preservada, superfície externa limpa).
+- **C5 400** invalid-proc; **C5b 401** anon proxy.
+- **C6 502 aws-unreachable** com URL pública no body (não vaza JWT secret nem identidade).
+- **C7 500 server-error** fallback genérico via revisão `routes/aws.ts:273-278` — `"Erro interno na bridge AWS."` sem stack/host (validação por leitura do code path do ui-tester, sem invocar; aceitável porque os 3 kinds antecedentes — db-unavailable/aws-unreachable/aws-timeout — cobrem o branching real e o fallback é a folha "outros").
+- **C8 sem regressão**: F003 login PROCESSA/99 ok, F004 `/api/auth/me` 200 com cookie, F023 `/api/hub/snapshot` 401 anon e 200 com cookie. Console limpo.
+
+**Refit aceito sem nova rodada**:
+
+Smith refez sanitização de erro mssql após `[ui-tester] fail` em C4 (erro do driver vazava host SQL `172.27.0.121\SQL2k19`). Refit entregou: (a) `AwsBridgeError` ganhou kinds `db-unavailable`+`proc-failed`; (b) `isMssqlError`/`promoteMssqlError` em `aws-client.ts`; (c) `executeSyncProcedure` envolve connect()+query() em try/catch com warn interno detalhado; (d) `bridgeErrorResponse` mapeia db-unavailable→503, proc-failed→502, fallback substitui message cru por "Erro interno na bridge AWS."; (e) `.env.example` documenta `STUDIO_AWS_JWT_SECRET` como deploy-wide. ui-tester revalidou e deu pass 8/8. Refit foi cirúrgico (não alterou contrato, só ajustou superfície de erro), justifica aceitação sem novo ciclo de design.
+
+**Ressalvas → features novas (não bloqueantes)**:
+
+1. **Smoke ponta-a-ponta com portal-aws real (n/a)**: portal-aws em `127.0.0.1:5100` desligado durante o teste; caminho feliz `Director → portal-aws → proc espelho → <Resposta>` nunca foi exercitado fim-a-fim. F024 cobre gates de erro (503/502/400/401), sanitização e protocolo do cliente; o que falta é a contraparte. → **Nova feature F048** (P1, integrations): provisionar `portal-aws-mock` (ou contraparte real) que aceite `Authorization: Bearer` com `Consts.SecretKey` e devolva envelope `<Resposta><Status>200|500</Status>...</Resposta>` para as 10 entidades de sync + 4 procs CRUD usuário-fornecedor. Sem F048 não há blocking de cutover, mas há blocking de "verde no primeiro deploy real". Decisão: F048 é P1 porque a bridge é mecanicamente correta (cliente + JWT + sanitização provados isoladamente); o que F048 destrava é confiança operacional, não funcionalidade.
+
+2. **JWT secret deploy-wide vs setup wizard**: decisão atual = `STUDIO_AWS_JWT_SECRET` é env deploy-wide (`.env.example` documenta como "mesma chave Director↔AWS"). Razão: paridade exata com legado — `Consts.SecretKey` é única no Director e única na AWS, configurada por deploy, não por tenant. Multi-tenant compartilhando uma mesma instância de Studio compartilha o segredo (e é o que o legado fazia). Confirmado. → **Nova feature F049** (P1, infra): adicionar step opcional no setup wizard que detecta se `acesso.TBaplicacao(portal-aws)` existe durante onboarding e, se sim, exige `STUDIO_AWS_JWT_SECRET` no `.env` final. Sem essa step, deploy depende de operador lembrar do segredo. F049 é UX/ops do wizard, não escopo de F024.
+
+**Critério não-aplicável**: design system component (N/A justificado acima — F024 é bridge backend pura, sem UI própria).
+
+**MISSION/PERSONA check**: bridge AWS é exatamente o tipo de integração on-prem↔nuvem que vive no escritório de CD/varejo BR — sync de cadastros (fornecedores, veículos, docas, feriados) entre o ERP local do tenant e o portal AWS de agendamento. Refit de sanitização de erro (não vazar `172.27.0.121\SQL2k19` para o usuário) é melhoria real sobre o legado (que `Console.WriteLine(ex.Message)` direto). Vibe check: encaixa em operador do CD que aperta "Enviar Fornecedores" e quer feedback claro quando falha.
+
+**Impacto no manifest**: F024 `Status=accepted`, `Accepted=✓ 2026-05-15`. Adicionadas F048 (P1) e F049 (P1). F024 fecha bloco integrations-core junto com F023. Próximos P0 da fila: F039/F040 (inventário eval/params — pré-requisito para remoção de `eval` no engine) e F043 (seed models — pré-requisito para validar F012-F022 sem stub).
