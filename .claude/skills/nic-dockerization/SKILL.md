@@ -72,17 +72,17 @@ Adicione estes scripts:
     "platform:down": "node infra/scripts/platform.mjs down",
     "platform:ps": "node infra/scripts/platform.mjs ps",
     "platform:logs": "node infra/scripts/platform.mjs logs -f",
-    "docker:up": "docker compose --env-file .env -f infra/docker-compose.yml up -d",
-    "docker:pull": "docker compose --env-file .env -f infra/docker-compose.yml pull",
-    "docker:down": "docker compose --env-file .env -f infra/docker-compose.yml down",
-    "docker:ps": "docker compose --env-file .env -f infra/docker-compose.yml ps",
-    "docker:logs": "docker compose --env-file .env -f infra/docker-compose.yml logs -f"
+    "docker:up": "dotenv -- docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml up -d",
+    "docker:pull": "dotenv -- docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml pull",
+    "docker:down": "dotenv -- docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml down",
+    "docker:ps": "dotenv -- docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml ps",
+    "docker:logs": "dotenv -- docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml logs -f"
   }
 }
 ```
 
-- `platform:*` — wraps `docker compose -f platform.yml -f dev-ports.yml ...` via script (`templates/platform.mjs`).
-- `docker:*` — wraps `docker compose -f docker-compose.yml ...`. Usados tanto pra staging/prod self-hosted quanto pra VPS.
+- `platform:*` — combina `platform.yml + dev-ports.yml`. Em projetos novos prefira **`dotenv -- docker compose -f ... -f ... up -d`** direto (mais simples, depende só do `dotenv-cli`). O wrapper `platform.mjs` continua disponível como alternativa quando o `dotenv-cli` não pode ser instalado.
+- `docker:*` — combina **`platform.yml + docker-compose.yml`** (NÃO só `docker-compose.yml`). A infra precisa subir junto com as apps em prod; se você omitir `-f platform.yml`, sobem apps sem postgres/redis/caddy e o stack quebra silenciosamente.
 
 ## Padrao image + build
 
@@ -337,6 +337,44 @@ Mesma regra vale pra `ENVIRONMENT` (`development` / `staging` / `production`) �
 4. Substitua `<projeto>` pelos valores reais.
 5. Configure secrets via dotenvx (skill `enc-encryption`): `.env.{development,staging,production}` encriptados na raiz, `.env.keys` so local.
 6. Adicione ao `.gitignore`: `data/`, `.env`, `.env.keys`.
+
+## Gotchas
+
+### Caddy em container, apps no host (modo dev): `host.docker.internal`
+
+Quando o Caddy roda em container e proxya pra apps rodando **no host** (modo dev), o Caddy **não consegue** resolver `localhost` — dentro do container, `localhost` é o próprio container. Sintoma: `502 Bad Gateway` em todas as rotas.
+
+Solução, em **dois lugares**:
+
+1. No `docker-compose.platform.yml`, adicione `extra_hosts` no service `caddy`:
+   ```yaml
+   caddy:
+     extra_hosts:
+       - "host.docker.internal:host-gateway"
+   ```
+
+2. No `.env`, na seção DEV OVERRIDES, setar os hosts que o Caddy lê pra `host.docker.internal` (NÃO `localhost`):
+   ```env
+   # DEV OVERRIDES
+   API_HOST=host.docker.internal
+   WEB_HOST=host.docker.internal
+   # Redis vive em container; apps no host falam com ele via localhost
+   REDIS_HOST=localhost
+   ```
+
+Apps no host continuam usando `localhost` nos seus próprios bindings — essas vars existem só pro Caddy. Em prod (com apps containerizadas) os defaults `*.internal` valem e essa complicação some.
+
+### `container_name` estável causa colisão em re-up
+
+Compose com `container_name: ${PROJECT}-redis` (ou similar) deixa o container com nome estável — bom pra logs/ps, mas se um deploy anterior (ou skill antiga) criou container com o mesmo nome em outro escopo Compose, `up` falha com `Conflict. The container name "/<projeto>-redis" is already in use`.
+
+Sintoma: `Error response from daemon: Conflict...` no `platform:up`.
+
+Resolução: `docker rm -f <nome-do-container>` e re-`up`. Pra prevenir em transições de schema (renomear projeto, mudar de skill antiga pra nova), faça `docker compose down` da versão antiga antes de aplicar a nova.
+
+### Re-up com volumes que mudaram de driver/options
+
+Se você muda config de volume entre versões (ex: adiciona `driver_opts`), o `up` pode falhar reclamando que o volume existente "tem configuração diferente". Remova o volume com `docker volume rm <nome>` (perde dados) ou ajuste a config pra coincidir com o existente.
 
 ## Referencias cruzadas
 
