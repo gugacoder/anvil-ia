@@ -206,3 +206,25 @@ Gap isolado em **F052b** (P1, infra) para o archaeologist investigar 3 hipótese
 **MISSION/PERSONA check**: F052 não tem vibe — é trilho de infra. Destrava o vibe das pages portal-director (Acessos/Usuários/Conexões/Director-mobile) — cadastros canônicos PROCESSA que o operador do CD vai consumir em ui-tester de F010/F011.
 
 **Impacto no manifest**: F052 `Status=accepted`, `Accepted=✓ 2026-05-15`. Adicionada F052b (P1, infra). F011 ui-tester end-to-end fica destravado para 4 das 5 datagrid pages portal-director.
+
+### F054 + F054b — Auditoria zero-eval → accepted (consolidado)
+
+**Decisão**: aceitar F054 (`Accepted=✓ 2026-05-15`, no-op confirmado) e aceitar F054b como **redundante referenciando F054**. Escopo idêntico, evidência herdada.
+
+**Contexto**: F054 foi originalmente enfileirada para eliminar o 3º ponto de `eval` (`button.externalAction`). Archaeologist em 2026-05-15 rejeitou a hipótese — `externalAction` no legado é função JSX literal, nunca string, nunca eval. Auditoria cross-tenant (15 bases, 133+ models de `TBmodel_pagina` + amostras de `TBfuncao_model` + seeds SQL canônicos) deu zero hits. Os únicos 2 `eval` em `react-tools/src` (GenericPage.js:93 + GenericPages.js:33) já estão cobertos por F050+F051. Curator reclassificou F054 como no-op dependente de auditoria final, e principal abriu F054b (mesmo escopo).
+
+**Por que aceitar F054 e marcar F054b como redundante (opção 1) em vez de remover F054b (opção 2) ou manter separada (opção 3)**:
+
+- **Não remover** porque o ui-tester registrou a duplicação no progress; arqueólogo referenciou F054b em survey; auditabilidade pede preservação do rastro.
+- **Não manter separada** porque escopo+evidência são idênticos — fazer duplo aceite gera ruído, não rigor.
+- **Marcar redundante** preserva rastreabilidade e fecha o trilho num só movimento.
+
+**Evidência (compartilhada por F054 + F054b)**: ui-tester confirmou 0 hits de `eval(` e `new Function(` em `packages/ui/src` + `apps/api/src` + `apps/director-studio/src`; smokes `/smoke/f050` e `/smoke/f051` carregam sem regressão; F051 reporta 25/25 PASS.
+
+**Impacto no manifest**: F054 `Status=accepted`, `Accepted=✓ 2026-05-15`. F054b `Status=accepted (redundante c/ F054)`, `Accepted=✓ 2026-05-15 (herdado)`. Linhas anotadas com prefixo de redundância. Trilho de eliminação de `eval` está **completo** (F050 handlers + F051 interpolation + F054/F054b auditoria invariante).
+
+### Incidente — perda do `progress-messages.txt` em 2026-05-15
+
+Durante o aceite de F054/F054b, o curator usou erroneamente o tool `Write` (sobrescrita total) em vez de append/Edit no `progress-messages.txt`, apagando as ~161 linhas de histórico do arquivo. O arquivo era untracked no git (sem backup recuperável). Reconstrução parcial das linhas 152-160 feita a partir do contexto da sessão e do `scope-decisions.md`; linhas 1-151 permanentemente perdidas. O arquivo agora contém aviso explícito no topo e as linhas novas do aceite F054/F054b.
+
+**Lição**: progress-messages.txt é append-only por contrato — qualquer toque deve ser via Edit (anchor na última linha existente) ou via append-equivalent. Nunca Write completo. Considerar mover o arquivo para tracked-no-git ou adicionar snapshot diário em `.tmp/` para recuperação futura.

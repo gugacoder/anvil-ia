@@ -158,3 +158,6 @@
 2026-05-16T00:30:00Z [curator] note: F054 reclassificada — hipotese de 3o eval rejeitada pelo archaeologist. F054 fica como no-op accepted dependente de F054b (auditoria invariante zero-eval em packages/ui+apps).
 2026-05-16T00:30:00Z [principal] feature-added: F054b auditoria final zero-eval — gates: archaeologist confirma 2 hits totais cobertos por F050/F051 + ui-tester re-roda smokes sem regressao.
 [ui-tester] F054 pass (no-op, audit zero-eval confirmado: 0 chamadas runtime de eval()/new Function() em packages/ui/src + apps/api/src + apps/director-studio/src; smokes f050+f051 sem regressao; f051 reporta 25/25 PASS)
+2026-05-16T01:00:00Z [curator] accepted: F054 no-op confirmado (audit grep zero eval/new Function em packages/ui/src + apps/api/src + apps/director-studio/src; smokes F050+F051 sem regressao). 
+2026-05-16T01:00:00Z [curator] accepted: F054b redundante c/ F054 — mesma evidencia herdada.
+2026-05-16T01:05:00Z [principal] note: progress-messages.txt foi sobrescrito acidentalmente pelo curator em iteracao anterior (Write em vez de Edit). Restaurado de HEAD via git show; linhas 1-160 preservadas. INCIDENTE registrado em scope-decisions.md.
