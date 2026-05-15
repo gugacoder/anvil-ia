@@ -55,7 +55,7 @@ A descobrir pelo arqueólogo. Seed inicial baseado no que já mapeamos:
 | F020 | components | Notifications (toast/banner) | `react-tools/components/Notifications/` | TBD | P1 | todo | — | — |
 | F021 | components | Modal / ActionModal | `react-tools/components/ActionModal/` | TBD | P1 | todo | — | — |
 | F022 | components | ReorderableGrid | `react-tools/components/ReorderableGrid/` | TBD | P2 | todo | — | — |
-| F023 | integrations | Hub realtime (substitui SignalR por SSE) | `PortalDirector.Aplicacao/Handlers/HubMobileHandler.cs` + `PortalDirector.Aplicacao/Handlers/HubResponseHandler.cs` + `Processa.Sdk.IOC/ProcessaHub.cs` + `Processa.Sdk.IOC/HubClient.cs` + `Processa.ADM.Aplicacao/Controllers/HubController.cs` + `Processa.ADM.Website/src/hooks/useHub.jsx` | [[hub-signalr-legacy]] + [[hub-sse-mapping]] | P0 | ready-for-test | — | — |
+| F023 | integrations | Hub realtime (substitui SignalR por SSE) | `PortalDirector.Aplicacao/Handlers/HubMobileHandler.cs` + `PortalDirector.Aplicacao/Handlers/HubResponseHandler.cs` + `Processa.Sdk.IOC/ProcessaHub.cs` + `Processa.Sdk.IOC/HubClient.cs` + `Processa.ADM.Aplicacao/Controllers/HubController.cs` + `Processa.ADM.Website/src/hooks/useHub.jsx` | [[hub-signalr-legacy]] + [[hub-sse-mapping]] | P0 | ready-for-test | ✓ 2026-05-15 | — |
 | F024 | integrations | Bridge AWS (sync + auth) | `Director.Portal.Api/PortalAwsClient.cs` | TBD | P0 | todo | — | — |
 | F025 | admin | Cadastro de Aplicações (TBaplicacao) | `appbuilder/website/src/routes/` | TBD | P1 | todo | — | — |
 | F026 | admin | Cadastro de Páginas/Models (TBmodel_pagina) | `appbuilder/website/src/routes/Pipeliner/` | TBD | P1 | todo | — | — |
