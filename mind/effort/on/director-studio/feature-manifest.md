@@ -39,7 +39,7 @@ A descobrir pelo arqueólogo. Seed inicial baseado no que já mapeamos:
 | F004 | auth | Sessão httpOnly cookie + Redis | derivado | [[processa-auth-paths]] | P0 | accepted | ✓ 2026-05-15 | ✓ 2026-05-15 |
 | F005 | shell | App layout (sidebar + header) | `react-tools/AppMain/` | [[app-main]] | P0 | accepted | ✓ 2026-05-15 (7/8, C2 mobile → F033) | ✓ 2026-05-15 |
 | F006 | shell | Theme claro/escuro/auto (default auto) | n/a (novo) | n/a | P0 | accepted | ✓ 2026-05-15 | ✓ 2026-05-15 |
-| F007 | shell | Menu hierárquico (proc canônica: `acesso.obter_acl_token`; `obter_rotas_aplicacao` é auxiliar) | `acesso.obter_acl_token.sql` + `react-tools/hooks/useAcl.js` + `react-tools/components/AppMain/AppSidebar.js` | [[menu-hierarquia]] + [[acesso-obter-rotas-aplicacao]] | P0 | ready-for-test | ✓ 2026-05-15 (C7 mobile → F033) | — |
+| F007 | shell | Menu hierárquico (proc canônica: `acesso.obter_acl_token`; `obter_rotas_aplicacao` é auxiliar) | `acesso.obter_acl_token.sql` + `react-tools/hooks/useAcl.js` + `react-tools/components/AppMain/AppSidebar.js` | [[menu-hierarquia]] + [[acesso-obter-rotas-aplicacao]] | P0 | accepted | ✓ 2026-05-15 (C7 mobile → F033) | ✓ 2026-05-15 |
 | F008 | shell | ACL por papel × função × página | `acesso.obter_acl_usuario_aplicacao.sql` | TBD | P0 | todo | — | — |
 | F009 | render | Engine schema-driven (dispatch por DFtipo) | `react-tools/components/AppMain/` + `acesso.obter_model_pagina` | TBD | P0 | todo | — | — |
 | F010 | components | Renderer DFtipo=form | `react-tools/components/GenericForm/` | TBD | P0 | todo | — | — |
@@ -65,7 +65,8 @@ A descobrir pelo arqueólogo. Seed inicial baseado no que já mapeamos:
 | F030 | components | FormField — `aria-invalid="true"` quando em estado error (spec [[form-field]] §95) | n/a (próprio) | [[form-field]] | P1 | todo | — | — |
 | F031 | infra | Setup wizard deve escrever `REDIS_URL=redis://localhost:${REDIS_PORT}` derivado de PREFIX (não hardcoded :6379) | n/a (próprio, follow-up de F001/F004) | n/a | P1 | todo | — | — |
 | F032 | infra | `config.ts` deve respeitar env externa (env explícita ganha de `.env`, convenção UNIX) | n/a (próprio, follow-up de F004) | n/a | P2 | todo | — | — |
-| F033 | shell | Validar shell em viewport mobile real <768px (drawer-up + shortcut-bar bottom + sidebar oculta) — F005 C2 não exercitável no Chrome MCP (viewport travado em 1536px); requer device emulation real (CDP `Emulation.setDeviceMetricsOverride`) ou browser real em 375/414/767px | n/a (follow-up de F005) | [[app-shell]] | P1 | todo | — | — |
+| F033 | shell | Validar shell em viewport mobile real <768px (drawer-up + shortcut-bar bottom + sidebar oculta) — F005 C2 não exercitável no Chrome MCP (viewport travado em 1536px); requer device emulation real (CDP `Emulation.setDeviceMetricsOverride`) ou browser real em 375/414/767px | n/a (follow-up de F005/F007) | [[app-shell]] | P1 | todo | — | — |
+| F034 | shell | Corrigir mojibake em `aria-label` da Sidebar (double UTF-8 encoding ao setar atributo — `Configurações` vira `ConfiguraÃ§Ãµes`; `textContent` OK). Causa-raiz no pipeline de encoding do atributo, não no menu. Afeta a11y do rail (tooltip/leitor de tela). | n/a (follow-up de F007) | [[sidebar]] + [[menu-hierarquia]] | P1 | todo | — | — |
 
 ## Backlog do arqueólogo
 
