@@ -38,7 +38,7 @@ A descobrir pelo arqueólogo. Seed inicial baseado no que já mapeamos:
 | F003 | auth | Login híbrido (5 caminhos) | `processa.sdk/Fontes/Processa.Sdk.Auth/` | [[processa-auth-paths]] | P0 | todo | — | — |
 | F004 | auth | Sessão httpOnly cookie + Redis | derivado | [[processa-auth-paths]] | P0 | todo | — | — |
 | F005 | shell | App layout (sidebar + header) | `react-tools/AppMain/` | TBD | P0 | todo | — | — |
-| F006 | shell | Theme claro/escuro/auto (default auto) | n/a (novo) | n/a | P0 | ready-for-test | ✓ 2026-05-15 | — |
+| F006 | shell | Theme claro/escuro/auto (default auto) | n/a (novo) | n/a | P0 | accepted | ✓ 2026-05-15 | ✓ 2026-05-15 |
 | F007 | shell | Menu hierárquico a partir de `acesso.obter_rotas_aplicacao` | `acesso.obter_rotas_aplicacao.sql` | TBD | P0 | todo | — | — |
 | F008 | shell | ACL por papel × função × página | `acesso.obter_acl_usuario_aplicacao.sql` | TBD | P0 | todo | — | — |
 | F009 | render | Engine schema-driven (dispatch por DFtipo) | `react-tools/components/AppMain/` + `acesso.obter_model_pagina` | TBD | P0 | todo | — | — |
@@ -59,6 +59,7 @@ A descobrir pelo arqueólogo. Seed inicial baseado no que já mapeamos:
 | F024 | integrations | Bridge AWS (sync + auth) | `Director.Portal.Api/PortalAwsClient.cs` | TBD | P0 | todo | — | — |
 | F025 | admin | Cadastro de Aplicações (TBaplicacao) | `appbuilder/website/src/routes/` | TBD | P1 | todo | — | — |
 | F026 | admin | Cadastro de Páginas/Models (TBmodel_pagina) | `appbuilder/website/src/routes/Pipeliner/` | TBD | P1 | todo | — | — |
+| F027 | shell | Anti-FOUC theme bootstrap inline (script em index.html aplica `.dark` antes do mount React) | n/a (novo, derivado de F006) | n/a | P1 | todo | — | — |
 
 ## Backlog do arqueólogo
 
