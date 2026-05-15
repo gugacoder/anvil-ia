@@ -39,7 +39,7 @@ A descobrir pelo arqueólogo. Seed inicial baseado no que já mapeamos:
 | F004 | auth | Sessão httpOnly cookie + Redis | derivado | [[processa-auth-paths]] | P0 | accepted | ✓ 2026-05-15 | ✓ 2026-05-15 |
 | F005 | shell | App layout (sidebar + header) | `react-tools/AppMain/` | [[app-main]] | P0 | accepted | ✓ 2026-05-15 (7/8, C2 mobile → F033) | ✓ 2026-05-15 |
 | F006 | shell | Theme claro/escuro/auto (default auto) | n/a (novo) | n/a | P0 | accepted | ✓ 2026-05-15 | ✓ 2026-05-15 |
-| F007 | shell | Menu hierárquico a partir de `acesso.obter_rotas_aplicacao` | `acesso.obter_rotas_aplicacao.sql` | TBD | P0 | todo | — | — |
+| F007 | shell | Menu hierárquico (proc canônica: `acesso.obter_acl_token`; `obter_rotas_aplicacao` é auxiliar) | `acesso.obter_acl_token.sql` + `react-tools/hooks/useAcl.js` + `react-tools/components/AppMain/AppSidebar.js` | [[menu-hierarquia]] + [[acesso-obter-rotas-aplicacao]] | P0 | todo | — | — |
 | F008 | shell | ACL por papel × função × página | `acesso.obter_acl_usuario_aplicacao.sql` | TBD | P0 | todo | — | — |
 | F009 | render | Engine schema-driven (dispatch por DFtipo) | `react-tools/components/AppMain/` + `acesso.obter_model_pagina` | TBD | P0 | todo | — | — |
 | F010 | components | Renderer DFtipo=form | `react-tools/components/GenericForm/` | TBD | P0 | todo | — | — |
