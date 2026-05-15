@@ -180,3 +180,29 @@ Features de **infra**, **seed**, **inventário documental** ou **bridge backend 
 3. **N/A do design system é justificado por escrito** no scope-decisions e no manifest (campo `Accepted`).
 
 Esse padrão **não** se aplica a renderers (F010-F022), shell (F005-F008), auth (F003-F004) ou qualquer feature com superfície UI — ui-tester é mandatório para essas.
+
+### F052 — Seed de stored procedures portal-director → accepted
+
+**Decisão**: aceitar. Feature de infra/seed sem superfície UI; aplica-se a política transversal de aceitação sem UI consolidada acima.
+
+**Critérios auditados**:
+
+1. **Contrato seguido** ([[obter-model-pagina]] + [[model-valor-datagrid]] + [[model-valor-genericform]]): smith reaplicou 4 procs **exatamente como vivem em sources** (`sources/engenharia--fabrica--sql--portal-director/portal.director/programacao/acesso.*`), via DROP+CREATE idempotente do próprio `.sql` legado. Zero mutação de bytecode — só garante que base == sources. Dependência transitiva `dbo.Split` verificada presente. Não inventou DDL para as 5 ausentes — postura correta. Encoding lido em `latin1` (cp1252) respeitando convenção do legado.
+
+2. **Componente do design system**: N/A justificado — F052 é seed de procs SQL. Sem UI. Mesmo critério aplicado a F043 (seed de models) e F039/F040 (inventários).
+
+3. **Caso real**: smoke 4/4 contra `DBdirector_imperial_logistica_29` na Area 52 com payload XML real (`<Parametros><pagina>1</pagina>...`) — não fixture, não mock. Cada proc respondeu com envelope `<Relatorio>` válido (3 procs) ou recordset vazio aceitável (`sp_consultar_config_mobile` — sem dados de mobile no tenant). `modify_date` em `sys.objects` confirma escrita real. Caminho exato que F011 (datagrid) vai consumir em produção: replay do contrato envelope POST.
+
+**Sobre o gap das 5 procs ausentes**:
+
+Smith **não inventou DDL** — postura canônica do mandato de cobertura. Não há proc em sources, não há proc na base, portanto não há contrato auditável. Inventar DDL aqui violaria "100% RTM" do lado oposto: entregaria comportamento que não existe no legado.
+
+Gap isolado em **F052b** (P1, infra) para o archaeologist investigar 3 hipóteses (outro source não-catalogado / endpoint `.cs` sem proc / proc privativa por tenant). Saídas: localizou → smith aplica; vivia em `.cs` → vira feature de endpoint nativo do Studio (rotas em `apps/api/src/routes/`); nunca existiu → descarta as 5 pages do cutover (refactor de F043 ou banner amarelo proc-not-found explícito).
+
+**Por que F052b é P1 e não P0**: F052 destrava 4 das 9 pages portal-director (todas datagrid de leitura). O subset não destravado é 1 datagrid (`acessos_fornecedor`) + 4 genericform (`configuracoes_*`). O cutover global não depende exclusivamente dessas 5 pages — cadastro de fornecedor e configurações de bridge/email/cotação/agendamento são valiosos mas não são porta-de-entrada do produto. Subir para P0 se o usuário sinalizar que alguma dessas 5 pages é blocker.
+
+**Critério não-aplicável**: design system component (N/A justificado).
+
+**MISSION/PERSONA check**: F052 não tem vibe — é trilho de infra. Destrava o vibe das pages portal-director (Acessos/Usuários/Conexões/Director-mobile) — cadastros canônicos PROCESSA que o operador do CD vai consumir em ui-tester de F010/F011.
+
+**Impacto no manifest**: F052 `Status=accepted`, `Accepted=✓ 2026-05-15`. Adicionada F052b (P1, infra). F011 ui-tester end-to-end fica destravado para 4 das 5 datagrid pages portal-director.
