@@ -78,3 +78,4 @@
 2026-05-15T22:30:00Z [curator] feature-added: F043 seed de models portal-director em Area 52 (P0) — pré-requisito para F010+ não caírem no mesmo stub que F009 C3. Decidir entre carregar processa.appbuilder/1-alimentacao/*.sql, clonar base com models reais, ou criar fixture por feature.
 2026-05-15T22:30:00Z [curator] priority=P0: F043
 2026-05-15T22:30:00Z [curator] note: F009 fecha bloco render-core. Próximos P0 da fila: F010 (genericform), F011 (datagrid), F023 (hub realtime), F024 (bridge AWS), F039+F040 (inventário eval/params), F043 (seed). F010+F011 dependem de F043 para ui-tester end-to-end sem stub.
+2026-05-15T16:21:30Z [archaeologist] feature-added: F010 contract -> atlas/concepts/legacy-contracts/model-valor-genericform.md (schema 2D model[][] + 18 ctypes + 8 maskTypes + 19 actions + buttons/actionModalConfigs/linkedFields + 3 submit paths)
