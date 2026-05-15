@@ -283,6 +283,49 @@ Vai virar débito real se o cutover acontecer sem F-tbobjetos-dashboard rodado; 
 
 **Impacto no manifest**: F012 `Status=accepted`, `Accepted=✓ 2026-05-15`. Adicionadas F055-F064 (10 follow-ups) + F-tbobjetos-dashboard. Trilho de renderers core (F010 form, F011 grid, F012 dashboard) está com **3/3 aceitos**. Próximos renderers P1: F013 tree, F014 tabs, F015 wizard, F016 filtros, F018 datepicker, F019 powerselect, F020 notifications, F021 modal.
 
+### F013 — Renderer DFtipo=tree (generictreeview + SearchTree) → accepted
+
+**Decisão**: aceitar. 11/11 ui-tester pass no retry (linha 185 do progress, 2026-05-16T09:15:00Z) após fix `46d8798`, contra Area 52 sessão PROCESSA/99 IMPERIAL LOG.
+
+**Critérios auditados**:
+
+1. **Contrato seguido** ([[model-valor-generictreeview]]): o contrato cobre **duas árvores distintas** do legado, e ambas foram entregues:
+   - **(A) `generictreeview`** — nó do model despachado pelo engine (legado: `GenericPage.js:325-329`), navegação multi-página com sidebar + recursão do engine no painel direito. Studio entrega `tree-view.tsx` (split desktop / master-detail mobile) + `tree-view-renderer.tsx` (plug no `ModelEngine` pela chave `generictreeview`), com schema legado mapeado `tree → children`, payload `{model}` repassado, recursão real do engine via prop nova `embeddedModel` em `model-engine.tsx` (`skip:true` no `useModel`, renderiza direto sobre JSON em mãos).
+   - **(B) `SearchTree`** — componente standalone checkable do public API (legado: `src/index.js:77`, baseado em `rc-tree`). Studio entrega `tree-checkable.tsx` com cascade pai↔filho tristate (`aria-checked=mixed`), `valueMode=leaves` default, limiar 2 chars + auto-expand, value controlado alinhado ao consumer real (`ModalRecursos.jsx`), footer flex (`save|clear|both|none`) + `hideSaveButton` p/ embed em modal, wrapper `TreeCheckableSheet` Vaul direction=bottom mobile / direction=right desktop.
+   
+   Upgrades sobre o legado declarados como **paridade UX**: filtro state-driven recursivo com auto-expand de pais dos matches (corrige débito UX do legado que filtrava por DOM-hack só 2 níveis); persistência de expand/collapse em `sessionStorage`; WAI-ARIA tree completo (`treeitem/group/aria-expanded/aria-level/aria-current=page`). Sem `rc-tree`, sem `react-arborist` — primitivos próprios.
+
+2. **Componente do design system** ([[ui-system/tree-view]] + [[ui-system/tree-checkable]]): specs publicadas pelo designer com 2 primitivos coerentes — TreeView (mobile master/detail com sub-tela, desktop split persistente, deep-link via `activeId` controlado, role=tree + WAI-ARIA keyboard completo) e TreeCheckable (mobile-first modal-sheet/bottom-sheet, cascade pai↔filho tristate com `valueMode` controlado, filtro state-driven recursivo substituindo o DOM-hack do legado, footer flex p/ embed-em-modal e standalone). Entregue em `packages/ui/src/components/{tree-view,tree-checkable,tree-view-renderer}.tsx` + alteração mínima em `model-engine.tsx`.
+
+3. **Caso real ui-tester**: 11/11 retry após smith `46d8798` — C7 highlight `<mark bg-primary/20>` × 2 confirmado em filtro TreeCheckable, C8 Sheet abre sem loop/crash (causa-raiz era loop de feedback parent↔child em modo controlado; fix: sync com `controlledValue` compara conteúdo do Set antes de `setState`; `internalLeavesRef`/`syncedFromPropRef` hoisted; emit pula quando sync vem do prop), toggle "Alterar" via Sheet marca checkbox + Salvar dispara `onSave([fn-listar,fn-incluir,fn-alterar])` fechando Sheet limpo. Revalidação C1-C6 OK (TreeView raízes, expand Cadastros, recursão engine→GenericForm, sub-tree aninhado, filtro "Rel" recursivo, TreeCheckable cascade tristate inline cobre 6 leaves). Console limpo.
+
+**Ressalvas isoladas e não-bloqueantes**:
+
+- **F-rc-tree-public-api-drift (P1, archaeologist)** — drift entre HEAD do `react-tools` e pacote em produção (consumer `ModalRecursos.jsx` usa props fora do PropTypes: `ref`, `hideSaveButton`, `value` controlado). Já enfileirada pelo arqueólogo na onda de contrato (linha 180 do progress). Bloqueante apenas p/ decidir o **contrato definitivo** do SearchTree público quando ele virar dependency externa do Studio — não bloqueia o renderer F013 entregue, que já incorporou as props observadas no consumer real.
+- **Fixture do smoke `/smoke/f013` divergente** — usa `genericform:{fields:[]}` enquanto F010 lê `config.model=[[Field]]`. Defeito de fixture, não de renderer: o `GenericFormRenderer` reage corretamente ao schema vazio com `InlineAlert "Form sem campos"` (resposta correta a config.model vazio). Vira **F066** (P2, follow-up). Não bloqueia aceite porque recursão do engine cumpriu o contrato no caso real do ui-tester.
+- **Highlight de substring no TreeView ausente** — só TreeCheckable destaca matches. Fora do contrato legado (`GenericTreeView.js` não destacava), mas spec [[tree-view]] sugere paridade. Vira **F065** (P2, follow-up). Não bloqueia: legado não tinha, contrato não exige.
+- **C9 mobile real** — não exercitável pelo viewport-congelado-em-1536 do Chrome MCP; cobertura <768px segue o débito transversal **F033**. Mesmo critério aplicado em F005/F007/F008/F012.
+
+**7 follow-ups do archaeologist** declarados na onda de contrato (linha 180 do progress) — ficam em **backlog do arqueólogo**, não bloqueiam F013:
+
+| Sinal do archaeologist | Status |
+|---|---|
+| F-acessos-usuario-recursos (P1) | backlog — feature de admin |
+| F-tree-editor (P2) | backlog — editor visual TreePageConfig |
+| F-recursos-acesso-tree-shape | backlog — sub-contrato |
+| F-tree-lazy-load (P3) | backlog — upgrade sobre legado |
+| F-tree-drag-reorder (P2) | backlog — upgrade sobre legado |
+| F014-pageTabs simetria | já enfileirada como F014 |
+| F-rc-tree-public-api-drift (P1) | backlog — bloqueante de contrato externo |
+
+Não enfileiro nada dessa lista nesta rodada de aceite — F013 entrega o **renderer canônico das duas formas legadas**, que é o que o contrato pede. Os 7 sinais são feature-territory adjacente (admin de acessos, editor visual, drift de contrato) que vivem do lado do archaeologist até virarem manifest-entries com mandato explícito.
+
+**Critério não-aplicável**: nenhum. 3/3 critérios cumpridos.
+
+**MISSION/PERSONA check**: árvore de "Acessos do Usuário" (`ModalRecursos.jsx`) é fluxo central do dia-a-dia de quem opera o ERP do CD/varejo — admin abre modal, marca fn-listar/fn-incluir/fn-alterar por módulo, salva. Studio entrega TreeCheckable com cascade tristate visualmente correto (`aria-checked=mixed`), filtro 2-chars + auto-expand corrigindo o débito UX do `getElementsByClassName` legado (que só filtrava 2 níveis e dependia de DOM-hack), Sheet bottom no mobile p/ uso em tablet/celular no chão do CD. TreeView com recursão real do engine resolve o caso de "Cadastros → escolher entidade → render do GenericForm/Grid no mesmo painel" sem reload. Vibe check: encaixa.
+
+**Impacto no manifest**: F013 `Status=accepted`, `Accepted=✓ 2026-05-15`. Adicionadas **F065** (treeview-highlight-parity, P2) e **F066** (fix-smoke-f013-fixture, P2). Trilho de renderers core agora com **4/4 aceitos**: F010 form + F011 grid + F012 dashboard + F013 tree. Próximos renderers P1: F014 tabs, F015 wizard, F016 filtros, F018 datepicker, F019 powerselect, F020 notifications, F021 modal.
+
 ### Incidente — perda do `progress-messages.txt` em 2026-05-15
 
 Durante o aceite de F054/F054b, o curator usou erroneamente o tool `Write` (sobrescrita total) em vez de append/Edit no `progress-messages.txt`, apagando as ~161 linhas de histórico do arquivo. O arquivo era untracked no git (sem backup recuperável). Reconstrução parcial das linhas 152-160 feita a partir do contexto da sessão e do `scope-decisions.md`; linhas 1-151 permanentemente perdidas. O arquivo agora contém aviso explícito no topo e as linhas novas do aceite F054/F054b.
