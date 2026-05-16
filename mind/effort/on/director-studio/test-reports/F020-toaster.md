@@ -94,3 +94,48 @@ Como ambos dependem do mesmo subsistema (ciclo de vida de fechamento do toast no
   1. Investigar como `duration` é propagada do `useToast()` para o sonner — provavelmente está sendo dropada no spread de options.
   2. Investigar o `dismiss()` sem argumento no hook — deve repassar `undefined` (não substituir por outro valor) para `sonner.toast.dismiss(undefined)`, que fecha todos.
   3. T3 e T8.b agora passam — não tocar nesses caminhos.
+
+## Retry 2 — 2026-05-16 (após commit 41882bd, fix2 do smith)
+
+**Resultado**: **fail** (T1.b e T4 continuam quebrados; T8.b **regrediu** de pass para fail)
+
+Smith aplicou 3 mudanças no fix2:
+- Dismiss defensivo `undefined`/`null` → `sonnerToast.dismiss()` sem args
+- `<Toaster duration={4000}/>` backstop global
+- MutationObserver batched via rAF (para evitar re-entrância no timer interno do sonner)
+
+| # | Cenário | Status anterior | Esperado | Observado nesta rodada | Resultado |
+|---|---|---|---|---|---|
+| T1.b | Duração por severidade | fail (fix1) | success some em ~4000ms | Toast `success` permanece `data-visible=true data-removed=false` aos **8000ms** (poll 50ms até 4000+4000ms) e também aos **12000ms** (sample explícito). `document.hasFocus()=true` confirmado antes do disparo. 4 severidades disparadas: aos 4.5s todos os 4 ainda `data-visible=true data-removed=false`. Backstop `Toaster duration={4000}` não está aplicando. | **falha** |
+| T4 | `dismiss()` global fecha todos | fail (fix1) | sem argumento, fecha todos | Antes do click: 1 visível. Após click em "dismiss() todos", samples em 100/300/800/1500/2500ms: **1 visível em todos os samples**. Nenhum toast fechou. O fix defensivo (`undefined`/`null` → sem args) não corrigiu o problema — provavelmente o caminho de `dismiss()` ainda não chama `sonnerToast.dismiss()` quando recebe `undefined`, ou outra camada está bloqueando. | **falha** |
+| T8.b | A11y `role` + `aria-live` por severidade | **pass** (fix1) | success/info → `role=status aria-live=polite`; warning/error → `role=alert aria-live=assertive` | Varredura de 3 toasts visíveis (warning/error/info) imediatamente após disparo: `role=null aria-live=null aria-atomic=null` em todos. Re-amostragem 1.5s depois e 4.5s depois: **continua null**. Varredura de descendentes e ancestrais: 0 elementos com `role` ou `aria-live` no subtree do toaster. **Regrediu** comparado ao fix1. | **regressão → falha** |
+
+### Hipótese para a regressão T8.b
+
+O MutationObserver batched via rAF (mudança 3 do fix2) provavelmente é o culpado. No fix1 o observer aplicava `role`/`aria-live` síncrono no callback de mutation, logo após o sonner montar cada `<li data-sonner-toast>`. Ao mover para um batch via `requestAnimationFrame`, ou o callback rAF não está rodando, ou está rodando antes/depois da janela em que o sonner permite atribuir esses attrs, ou está sendo cancelado por re-entrância. Resultado prático: zero toasts ganham os atributos.
+
+### Regressão dos passes anteriores
+
+| # | Cenário | Observado | Resultado |
+|---|---|---|---|
+| T1.a | Posição + ícone Phosphor | `data-y-position=top data-x-position=right`; 4 toasts disparados com `<svg>` Phosphor e classes `bg-x-success/10 bg-x-info/10 bg-x-warning/10 bg-x-error/10`. | **pass** |
+| T2 | Stack máx 3 visíveis | "disparar 5 (stack)" → total=6 (1 leftover + 5 novos), `visible=3`. Cascata correta. | **pass** |
+| T3 | Action button fecha toast | Click em "Reenviar" → toast removido do DOM em <2.3s (afterCount=0 ao final do intervalo). `t3pass` requer cuidado: aos 800ms ainda 1 visível, mas em ~1500ms+ foi removido. | **pass** |
+| T5 | Description abaixo do title | Title "Exportacao iniciada" titleY=40.8; description "Voce sera notificado..." descY=65.8; `descBelow=true`. | **pass** |
+| T7 | Mobile full-width 16px | viewport efetivo 500px: `yPos=top xPos=right` (config) MAS visualmente `x=16 right=16 width=468` — full-width com margens simétricas. Sonner aplica behavior responsivo mesmo mantendo o data attr original. | **pass** (mesmo padrão do fix1) |
+| T8.a | Console limpo | Sem mensagens de erro/warning relacionadas a sonner/toast. | **pass** |
+
+### Conclusão fix2
+
+- **3 issues, 0 resolvidas, 1 regressão.**
+- T1.b (duração): backstop `<Toaster duration={4000}/>` não está aplicando. Hipótese: ou o `<Toaster>` está sendo montado em outro lugar sem essa prop, ou o sonner não usa `duration` do `<Toaster>` como default (pode exigir `toast(msg, {duration: X})` no call site).
+- T4 (dismiss global): mudança defensiva não corrigiu. O wrapper `useToast().dismiss()` provavelmente sequer está sendo chamado, ou está mapeando para outra coisa. Vale instrumentar com console.log no caminho do dismiss.
+- T8.b (a11y): regrediu por causa do MutationObserver via rAF. Voltar à versão síncrona OU garantir que o rAF callback realmente roda e re-processa os toasts existentes (não só novos).
+
+### Próxima ação
+
+- **fail** → smith retoma. Sugestão de ordem de ataque:
+  1. **Reverter** o MutationObserver para versão síncrona (recupera T8.b imediatamente).
+  2. **Instrumentar `dismiss()`** com `console.log` antes/depois da chamada ao sonner, disparar o smoke, observar console. Se nem chega no `sonner.toast.dismiss()`, o problema é no wiring do hook; se chega mas não fecha, é problema do sonner com a versão atual.
+  3. **Duração**: passar `duration` no nível do `toast()` call (no hook ou call sites), não confiar no default do `<Toaster>`. Sonner v1.x respeita `duration` por toast > default do Toaster.
+
