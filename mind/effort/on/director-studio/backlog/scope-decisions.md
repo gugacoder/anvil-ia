@@ -11,6 +11,24 @@ Append-only. Cada decisão de escopo do curator (aceitar/recusar/dividir/adiar) 
 
 ## 2026-05-16
 
+### F070..F073 — onda de correções vaul/mobile-first em packages/ui
+
+**Decisão**: enfileirar 4 features dedicadas para corrigir violações da skill [[vaul]] em componentes do design system. Cada componente vira sua própria feature (não agrupar) porque cada um tem trade-off UX distinto (Dialog vs Sheet vs Popover) que precisa de aceitação independente.
+
+**Aprendizado estrutural**: auditoria do principal revelou que smith ignorou a skill [[vaul]] em 3 componentes (`receipt-modal`, `generic-form-renderer` 2×, `RecentStackSheet`) — todos usam Drawer Vaul incondicional sem gate `useIsMobile()`, resultando em drawer-up subindo no desktop. O 4º (`tree-checkable`) usa Drawer `direction="right"` no desktop, que funciona mas não é o canônico da skill (`Sheet side="right"` shadcn). 
+
+**Fechamento do gap**: smith.md foi atualizado com checklist obrigatório anti-violação (skills [[vaul]], [[mobile-first-page]], [[ui-dry]]) — ver linhas 38-52 do agente. A partir daqui, qualquer wave do smith deve confirmar o checklist antes de marcar `ready-for-test`; ui-tester recusa se o checklist não foi seguido.
+
+**Priorização**:
+- **F070** ui-system — receipt-modal Drawer→Dialog desktop (P1; bloqueia UX em qualquer página que use ReceiptModal no desktop, fluxo de F050 submit-com-comprovante).
+- **F071** ui-system — generic-form-renderer 2 Drawers → Dialog+Sheet desktop (P1; afeta diretamente F010 GenericForm que já está accepted — débito retroativo na impl, sem revogar aceite, política forward-only de scope-decisions §F003).
+- **F072** ui-system — RecentStackSheet Drawer→Popover/Sheet desktop (P2; afeta page-tabs/F014 mas é primitivo de navegação periférico, não bloqueia fluxo principal).
+- **F073** ui-system — tree-checkable Drawer direction=right → Sheet side=right canônico (P3; refinamento de consistência, funciona como está).
+
+**Impacto retroativo (não-revogatório)**: F010 (accepted), F013 (accepted, depende de tree-checkable) e F014 (accepted, depende de page-tabs) mantêm `Accepted=✓` históricos. As correções migram para F070..F073 forward-only (mesma política aplicada em F003→F067/F068/F069). Cutover bloqueia até 100% accepted nas features novas.
+
+**Critério especial Source/Contract**: Source=`n/a (correção de impl)` — não há contrato legado, é violação de skill interna do Studio. Contract=`skill [[vaul]] + [[mobile-first-page]]` — a verdade aqui é a skill, não a proc/contrato do legado.
+
 ### F003 → F067/F068/F069 — divisão forward-only por gap retroativo
 
 **Decisão**: dividir o escopo restante de F003 em três features dedicadas (F067 ldap-bridge, F068 temp-password, F069 fornecedor-aws-coverage). F003 mantém `Accepted=✓ 2026-05-15` (não revogo retroativamente — política forward-only).
