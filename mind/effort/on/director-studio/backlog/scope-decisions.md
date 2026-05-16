@@ -11,6 +11,39 @@ Append-only. Cada decisão de escopo do curator (aceitar/recusar/dividir/adiar) 
 
 ## 2026-05-16
 
+### F020 — aceite parcial (Toaster sonner v2; débito T4 dismiss global → F085)
+
+**Decisão**: aceitar F020 com nota `(10/11; T4 → F085)` e enfileirar F085 (P3) como follow-up dedicado para investigar o `dismiss()` global no-op.
+
+**Critérios atendidos** (3/3 com débito declarado):
+
+1. **Contrato seguido** ([[notifications]] N1..N12 + [[toaster]] §API): audit-pass do archaeologist confirma 4 passes + 8 divergências conscientes documentadas (rename `danger→error`, durações diferenciadas 4/5/6/8s, top-right desktop, stack real até 3, `dismiss(id?)` exposto, etc.). Stack: sonner v2.0.7 puro, sem DOM manipulation, sem timers customizados.
+2. **Componente do design system** ([[toaster]]): entregue em `packages/ui/src/components/sonner.tsx` + `hooks/use-toast.ts`, montado uma única vez em `apps/director-studio/src/main.tsx` (fora do `<Outlet/>`, sobrevive a route change). Phosphor icons + tokens semânticos `x-success/x-info/x-warning/x-error`.
+3. **Caso real ui-tester**: 10/11 cenários em smoke `/smoke-f020` contra app rodando local com sessão Area 52. Casos cobertos: T1.a posição+ícone+tokens, T1.b duração por severidade dentro de ±500ms (medido em `data-removed=true`), T2 stack máx 3, T3 action button fecha, T5 description abaixo do title, T6 hover pause restaurado, T7 mobile top-center full-width, T8.a console limpo (zero `insertBefore`, zero `NotFoundError`), T8.b a11y `role`/`aria-live` por variant via MutationObserver simples, T9 multi-toast em sequência sem crash (crítico — resolveu regressão do retry 4 que derrubava app inteiro).
+
+**Gap aceito — T4 `dismiss()` global**: chamar `useToast().dismiss()` sem argumento não fecha toasts ativos. Sintoma persiste após 6 retries (sonner v2 puro, downgrade 1.7.x, workaround setTimeout+DOM manipulation gerou regressão crítica `insertBefore`, workaround Set+iter via `dismiss(id)` por id também no-op). Caminhos paralelos funcionam: (a) auto-dismiss por timer cobre 99% dos casos, (b) action button fecha (T3 pass), (c) `dismiss(id)` específico funciona. O caso de uso global é raro (logout antes de redirect, navegação massiva).
+
+**Por que aceitar com débito em vez de rejeitar e seguir tentando**:
+
+- **6 waves já gastas** sem convergência; sinal de bug estrutural do sonner v2 com nossa config (StrictMode? HMR Vite? wrapper hook?), não de erro de implementação trivial.
+- **T9 (crítico) resolvido**: a regressão `insertBefore` derrubava o app inteiro em uso normal. Opção A (sonner v2 puro) resolveu. Cutover não pode bloquear na ausência de uma feature periférica (dismiss global) quando a feature crítica (toast funcional, sem crash) está sólida.
+- **Workaround viável documentado**: callers que precisem fechar múltiplos toasts mantêm Set de ids retornados por `toast()` e iteram `dismiss(id)` (mesma técnica do workaround tentado, mas no call site — provavelmente funciona porque sai do wrapper).
+- **Política consistente**: análogo a F069 (gap de dados → F077), F071 (gap de cenário → F078/F079), F005/F007/F008/F012/F013 (gaps mobile → F033). Aceite parcial com follow-up rastreável é o padrão estabelecido.
+
+**Por que não swap para `react-hot-toast` agora**:
+
+10/11 cenários passam com sonner v2. Trocar de lib por 1 caso de uso raro seria overkill, exigiria redo do design system (sonner expõe primitivas que `react-hot-toast` não tem 1:1: stack, action, swipe nativo) e re-validação de tudo. F085 fica como porta aberta — se investigação confirmar bug estrutural sem fix viável, a feature dedicada pode incluir o swap.
+
+**Tarefas em F085** (P3, não-bloqueante):
+1. Instrumentar `useToast().dismiss()` com `console.log` antes/depois da chamada ao sonner — confirmar empiricamente onde a chamada se perde.
+2. Sanity-check: botão dedicado no smoke que chama `sonner.toast.dismiss()` direto, sem passar pelo wrapper. Se funcionar, problema é no wrapper; se não, bug do sonner.
+3. Avaliar swap para `react-hot-toast` ou downgrade definitivo para sonner 1.x se (1) e (2) confirmarem bug estrutural sem fix barato.
+4. Adicionar nota em [[toaster]] §"Cuidados / armadilhas": "Para fechar múltiplos toasts, callers devem manter os IDs retornados por `toast()` e iterar `dismiss(id)` — `dismiss()` global atualmente é no-op (F085)."
+
+**Proibições mantidas**: nenhuma adicional. F085 não bloqueia cutover; vira P0 se um call site real precisar de logout-with-flush antes do cutover.
+
+**Impacto manifest**: F020 `accepted` ✓ 2026-05-16 (10/11; débito T4 → F085); F085 adicionado P3 `todo`.
+
 ### F015 — scope-decision (c): deferir como P3, reabrir junto com AppBuilder
 
 **Decisão**: opção **(c)** — deprecar F015 como feature **ativa** agora, rebaixar a **P3 `deferred`**, com nota explícita de reabertura sob escopo **(a)** (chave `wizard` como template cadastrável no engine) quando AppBuilder virar feature ativa do Studio.

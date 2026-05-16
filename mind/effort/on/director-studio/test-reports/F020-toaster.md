@@ -311,4 +311,47 @@ Opção A entrega 10/11 com T9 (crítico) resolvido e T6 restaurado. Único déb
 
 Recomendação: **Opção 2** (fix dirigido em T4). Custo baixo, isolado, e libera F020 com aceitação completa.
 
+## Retry 6 — 2026-05-16 (após commit 9fab4c4 — workaround Set local de ids + iteração no dismiss)
+
+**Resultado**: **fail** (T4 continua no-op após workaround; T1.b e T3 sem regressão)
+
+Smith aplicou workaround declarado: manter um `Set` de ids ativos no hook e, no `dismiss()` sem argumento, iterar chamando `sonnerToast.dismiss(id)` por id. Intenção: contornar o `sonnerToast.dismiss()` global que estava silenciosamente no-op.
+
+### Casos re-exercitados
+
+| # | Cenário | Status anterior (retry 5) | Esperado | Observado nesta rodada | Resultado |
+|---|---|---|---|---|---|
+| T4 | `dismiss()` global fecha todos | fail | 3 toasts disparados → todos `data-removed=true` em <500ms após click no botão "dismiss() todos" | Disparei 3 errors (8s cada) em rápida sequência; `before={total:3, visible:3, removed:0}`. Click em "dismiss() todos" → samples via `setTimeout` em 50/100/200/400/700/1000/1500/2200/3000ms (timers reais 996/1992/3001/3002 ms devido a clamp de scheduler em background): **em todos os samples, `total=3 visible=3 removed=0`**. Snapshot final `after={total:3, visible:3, removed:0}` aos ~3200ms pós-click. Nenhum toast fechou. Console limpo (apenas HMR vite). | **falha** |
+| T1.b | Duração success 4s | pass (retry 5) | success removido em ~4000ms (±500) | MutationObserver em `data-removed`. `firedAt → removedAt` para variant success: **4021ms** (Δ+21). Dentro da tolerância ±500. | **pass** |
+| T3 | Action button fecha toast | pass (retry 5) | click em "Reenviar" → toast removed em <2000ms | Trigger disparado, toast com action label "Reenviar" confirmado, click no action. Samples: aos 1012ms `total=1 removed=1`; aos 1014ms `total=0`. Desmonte em ~1s. | **pass** |
+
+### Evidência
+
+- **T4**: payload completo `__t4.events` mostra 9 amostras entre 996ms e 3002ms, todos com `{total:3, visible:3, removed:0}`. Antes do click: `before={total:3, visible:3, removed:0}`. Depois (3200ms): `after={total:3, visible:3, removed:0}`. Botão "dismiss() todos" existe e está habilitado (`disabled=false`). Console não reporta erro durante/após o click — handler está sendo invocado silenciosamente, sem efeito visível.
+- **T1.b**: `firedAt=9358ms perf` → `removedAt=13379ms perf` → lifetime=4021ms para success. Spec=4000ms, dentro de ±500.
+- **T3**: action label correto ("Reenviar"); contagem cai de 1 → 0 entre 1012ms e 1014ms após click; `data-removed=true` capturado em snapshot intermediário.
+- Console: única mensagem ao longo do retry foi `[vite] hot updated: /sonner.tsx` (HMR após smith fazer ajuste). Zero errors/warnings.
+
+### Análise da falha residual
+
+O workaround declarado (Set local + iteração `sonnerToast.dismiss(id)` por id) **não está produzindo efeito observável**. Possíveis causas:
+
+1. O `Set` está sendo populado mas o caminho de `dismiss()` sem argumento no hook não entra na branch de iteração (talvez condicional `if (id) sonnerToast.dismiss(id); else <iterar>` esteja errada — `id === undefined` cai no else, ok; mas se o handler do botão passa `null` ou outro valor truthy-like, pode desviar).
+2. O `Set` está vazio no momento do click (ids são adicionados em `onMount`/`onUnmount` callbacks que não disparam, ou o hook é montado em outro escopo e cada `useToast()` tem seu próprio Set vazio).
+3. A iteração roda mas chama `sonnerToast.dismiss(id)` com ids que não correspondem aos toasts montados (id retornado por `sonnerToast(...)` é diferente do id que o sonner usa internamente — improvável mas possível em algumas versões).
+4. O handler do botão "dismiss() todos" no smoke não está chamando `useToast().dismiss()` sem argumento — talvez chame outro método.
+
+### Recomendação
+
+Smith precisa **instrumentar com `console.log`** três pontos para isolar onde a chamada se perde:
+- Antes/depois da iteração: `console.log('[dismiss] ids=', Array.from(activeIds))` e `console.log('[dismiss] iterating', id)`.
+- No callback de mount do toast: `console.log('[mount] id=', id)`.
+- No handler do smoke: `console.log('[smoke] dismiss clicked')`.
+
+Sem instrumentação, a opacidade do caminho impede diagnóstico empírico. Alternativa: trocar para usar `sonner.toast.dismiss()` global diretamente (sem wrapper) só nesse botão como sanity-check — se funcionar, problema é no wrapper; se não, problema é na versão da sonner/contexto de mount do Toaster.
+
+### Próxima ação
+
+- **fail** → smith retoma. F020 não pode ser aceito com T4 quebrado porque é parte explícita da API conceitual da [[toaster#API conceitual]] ("Sem argumento, fecha todos").
+- T1.b e T3 mantêm `pass` (sem regressão). Quando T4 fechar, o relatório fica 11/11.
 
