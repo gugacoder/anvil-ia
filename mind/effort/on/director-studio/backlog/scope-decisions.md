@@ -11,6 +11,29 @@ Append-only. Cada decisão de escopo do curator (aceitar/recusar/dividir/adiar) 
 
 ## 2026-05-16
 
+### F025 — scope-decision: deferir como P3, reabrir junto com AppBuilder
+
+**Decisão**: rebaixar **F025 (Cadastro de Aplicações — TBaplicacao)** a **P3 `deferred`** seguindo a **mesma política aplicada a F015** (ver §F015 abaixo). F025 é cadastro CRUD via UI do **AppBuilder**, que é P3 por MISSION ("cutover dos apps cliente vem primeiro; AppBuilder vira app do Studio depois").
+
+**Razão**:
+
+1. **Cadastro acontece fora do escopo P0/P1 do Studio**. As Áreas do Studio (`/areas/<chave>`) já consomem `acesso.TBaplicacao` em modo leitura — não há rota cliente que dependa de UI de cadastro de Aplicações. Provisionamento de novas Aplicações segue via SQL (seeds em `portal-director/`) ou via AppBuilder legado até o cutover do AppBuilder.
+2. **AppBuilder inteiro é P3**. F025 (cadastro de TBaplicacao), F026 (cadastro de TBmodel_pagina) e F015 (wizard Pipeliner) compõem o trilho AppBuilder. Trazer F025 sem F015/F026 produziria CRUD órfão — `Cadastro de Aplicações` no Studio sem `Cadastro de Páginas/Models` nem `Pipeliner` é meia entrega, exatamente o que o mandato 100% RTM proíbe.
+3. **Coerência recursiva da MISSION**. Quando AppBuilder reabrir como app ativa do Studio, F025 reabre sob o mesmo paradigma de F015 escopo (a): cadastro de Aplicações como **page schema-driven** em `TBmodel_pagina` (forma genérica `DFtipo=form` + grid + tree de hierarquia, sem rota hardcoded). O contrato CRUD de TBaplicacao vira instância concreta do engine, não código manual.
+
+**Reabertura — gatilho explícito**:
+
+F025 sai de `deferred` para `todo` quando **qualquer um** destes ocorrer:
+- AppBuilder for promovido a feature ativa (cutover do AppBuilder no roadmap), OU
+- Archaeologist identificar consumer cliente fora do AppBuilder que dependa de CRUD UI de TBaplicacao (até hoje nenhum), OU
+- Cliente/PERSONA pedir cadastro de Aplicações no Studio core antes do AppBuilder.
+
+Até lá, fica P3 `deferred`. O cadastro segue operável via SQL/AppBuilder legado.
+
+**Sub-features prováveis** (registradas para a reabertura, não enfileiradas agora): lista TBaplicacao, form CRUD (DFchave/DFnome/DFordem/DFdata_inativacao), validação de unicidade de DFchave. Todas naturalmente cobertas pelos renderers core já aceitos (F010 form + F011 grid) quando o caso de uso reabrir — não há renderer novo a construir.
+
+**Impacto no manifest**: F025 `Priority=P3`, `Status=deferred`, nota explícita de reabertura sob AppBuilder. Sem features novas enfileiradas. Mesma classe de F015 (deferral por timing/escopo, não por gap de descoberta).
+
 ### F020 — aceite parcial (Toaster sonner v2; débito T4 dismiss global → F085)
 
 **Decisão**: aceitar F020 com nota `(10/11; T4 → F085)` e enfileirar F085 (P3) como follow-up dedicado para investigar o `dismiss()` global no-op.
