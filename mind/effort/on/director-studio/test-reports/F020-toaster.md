@@ -180,3 +180,67 @@ Conforme combinado no briefing: **se T1.b/T4 ainda falharem, forçar via `setTim
 
 - **fail** → smith retoma com workaround explícito de `setTimeout(toast.dismiss, n)` para T1.b/T4 e debug independente do path a11y para T8.b.
 
+## Retry 4 — 2026-05-16 (após commit 867c925 — workaround DOM manipulation)
+
+**Resultado**: **fail** (T3/T4/T8.b passam; T1.b ainda fora de tolerância por ~1000ms; instabilidade nova de React reconciliation observada em cliques sequenciais)
+
+Smith aplicou workaround de DOM manipulation (presumivelmente `setTimeout(sonnerToast.dismiss(id), n)` por severidade + algo para a11y). Tradeoff declarado: pause-on-hover quebrado.
+
+| # | Cenário | Status anterior (retry 3) | Esperado | Observado nesta rodada | Resultado |
+|---|---|---|---|---|---|
+| T1.b | Duração por severidade | fail | success/info/warning/error somem em 4/5/6/8s ±500 | Tab focada (`document.hasFocus()=true`). Medições isoladas (1 toast por page life para evitar crash sequencial): success `data-removed=true` aos **5004ms** desde aparição (esperado 4000); info lifetime **6002ms** (esperado 5000); warning lifetime **6997ms** (esperado 6000); error lifetime **9010ms** (esperado 8000). Padrão consistente: cada severidade é **~1000ms acima** da spec. Desvio uniforme sugere que o setTimeout do workaround está em 5s/6s/7s/9s OU adiciona 1s de animação ao tempo medido. Em todos os casos, `Math.abs(observed - expected) > 500`. | **falha (fora da tolerância ±500)** |
+| T3 | Action button fecha toast | pass | click no action fecha toast | "Reenviar" clicado → toast marca `data-removed=true` em ~998ms, detach em ~1993ms. Comportamento correto. | **pass** |
+| T4 | `dismiss()` global fecha todos | fail | sem argumento, fecha todos | Disparei `success`, aguardei 400ms, cliquei "dismiss() todos". Sample 100ms: `data-removed=true` (1/1); sample 300ms: toast detached (`total=0`). Comportamento correto. | **pass** |
+| T8.b | A11y `role` + `aria-live` por severidade | fail | success/info → `role=status aria-live=polite`; warning/error → `role=alert aria-live=assertive` | Disparadas as 4 severidades; varredura 600ms depois: `error`→`role=alert aria-live=assertive aria-atomic=true`; `warning`→`role=alert aria-live=assertive aria-atomic=true`; `info`→`role=status aria-live=polite aria-atomic=true`; `success`→`role=status aria-live=polite aria-atomic=true`. Mapping completo casa com a spec. | **pass** |
+
+### Regressão dos passes anteriores
+
+| # | Cenário | Observado | Resultado |
+|---|---|---|---|
+| T1.a | Posição + ícone Phosphor + classes semânticas | 4 severidades disparadas; toaster `data-y-position=top data-x-position=right`. Cada toast com `<svg>` viewBox `0 0 256 256` e classe semântica `x-success`/`x-info`/`x-warning`/`x-error` no className. | **pass** |
+| T2 | Stack máx 3 visíveis | "disparar 5 (stack)" → samples em 50/200/500/1000ms: total cresce de 0→3→5→5; visible máx=3. Cascata mantida. | **pass** |
+| T5 | Description abaixo do title | Title "Exportacao iniciada" titleY=40.8; description "Voce sera notificado..." descY=65.8; `descBelow=true`. | **pass** |
+| T7 | Mobile top-center full-width | **não re-validado nesta rodada** — `resize_window` não reduziu o content viewport (devtools provavelmente aberta; viewport permanece 1536x674). Em 1536px desktop confirmei top-right `x=1156 right=24 w=356`. Em retries 1-3 com viewport efetivo ~500px o comportamento full-width/16px margens foi consistente; nenhuma mudança no caminho responsivo desde então. Mantido como **pass herdado** com observação. | **pass (herdado)** |
+| T6 | Hover pausa | Disparei `error` (8s), simulei hover via `pointerenter`/`mouseenter` no toaster e no toast imediatamente após aparição; toast foi removido aos 9000ms desde o hover (≈ duração default + animação). Hover NÃO pausou. Conforme tradeoff declarado pelo smith. | **expected-fail (tradeoff)** |
+| T8.a | Console limpo | Apenas mensagens `[vite] connecting/connected`. Sem erros/warnings durante o flow de testes finais (1 ação por page life). | **pass** (com ressalva — ver instabilidade abaixo) |
+
+### Instabilidade nova observada — React reconciliation crash
+
+Durante a fase exploratória (antes de adotar 1-ação-por-page-life), capturei via `window.addEventListener('error')`:
+
+```
+NotFoundError: Failed to execute 'insertBefore' on 'Node':
+The node before which the new node is to be inserted is not a child of this node.
+  at insertOrAppendPlacementNode (react-dom_client.js:9714:50)
+  at commitPlacement (react-dom_client.js:9745:13)
+  ...
+```
+
+E em seguida, no React DevTools warning:
+```
+An error occurred in the <Toast> component. Consider adding an error boundary...
+```
+
+**Reprodução**: na mesma vida da página, disparar um toast (qualquer severidade), esperar ele desaparecer, então disparar outro. O segundo toast frequentemente crasha o componente `<Toast>` interno da sonner com `insertBefore` failure. Quando crasha, **o app inteiro é unmounted** (`document.body.innerHTML.length` cai para 1620 — só o shell vazio), `btnCount=0`, e só recarregar a página recupera. Sintoma é compatível com **mutação manual de nó DOM que o React está gerenciando** (o workaround DOM manipulation modifica nós que a sonner/React mantêm reconciliados).
+
+Métodos de teste neste retry foram adaptados para `navigate → click body para focar → 1 trigger → medir → reload` por cenário, evitando o crash. Em uso real (UX, F046 binding), múltiplos toasts em sequência são esperados; este crash vai ser visível para o usuário.
+
+### Hipóteses para falhas/instabilidade
+
+- **T1.b ~1000ms over**: o workaround provavelmente usa `setTimeout(() => sonnerToast.dismiss(id), n)` onde `n` está em 5000/6000/7000/9000 (incluindo 1s de animação de exit no orçamento), ou o `setTimeout(..., 4000)` está correto mas o `data-removed=true` é setado apenas quando a animação de saída completa. Para acertar `disappearedAt ≈ 4000ms ±500`, o `setTimeout` deve disparar em `expected - exit_animation_duration` (~3000ms para success).
+- **React crash**: o workaround está modificando atributos/nós direto no DOM dos toasts (provavelmente para injetar role/aria-live no toast renderizado pela sonner). Cada vez que sonner re-renderiza (novo toast aparece, antigo sai), React tenta reconciliar contra um DOM que foi alterado por fora — `insertBefore` falha. **Solução técnica**: aplicar role/aria-live via prop nativa da sonner (`<Toaster ariaLabel/>` per type, ou via `cloneElement` em render custom) em vez de mutação imperativa.
+
+### Conclusão retry 4
+
+- **4 issues do retry 3 → 3 resolvidas, 1 ainda fora da tolerância** (T1.b por ~1000ms).
+- **1 instabilidade nova introduzida**: crash de reconciliação no `<Toast>` quando há múltiplos toasts em sequência dentro da mesma vida da página, derrubando o app inteiro.
+- T6 (hover pause) marcado como **expected-fail** (tradeoff declarado, OK).
+
+### Próxima ação
+
+- **fail** → smith retoma. Foco:
+  1. **Ajustar setTimeout do workaround**: subtrair tempo de animação de exit do `setTimeout`. Se exit anima 1000ms, disparar `dismiss` em `expected - 1000` (ex.: success → setTimeout 3000ms; info → 4000ms; warning → 5000ms; error → 7000ms). Ou redefinir tolerância da spec se o "desaparecer" é interpretado como "início da animação de saída" — então T1.b passa.
+  2. **Substituir DOM manipulation por API nativa da sonner**: a sonner aceita `<Toaster toastOptions={{...}}/>` e `toast(msg, {role, ariaLive, ...})` por chamada; passar role/aria-live por essa API elimina o crash de reconciliação.
+  3. T6 fica como tradeoff aceito.
+
+
