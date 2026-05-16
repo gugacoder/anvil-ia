@@ -29,6 +29,26 @@ Append-only. Cada decisão de escopo do curator (aceitar/recusar/dividir/adiar) 
 
 **Impacto manifest**: F069 `accepted` ✓ 2026-05-16 (parcial); F077 adicionado P2 `todo`.
 
+### F071 — aceite parcial (generic-form-renderer Drawers → Dialog + Sheet)
+
+**Decisão**: aceitar F071 com nota `(parcial)` e enfileirar F078 (P3) + F079 (P3) como follow-ups.
+
+**Critérios atendidos**:
+- Skill [[vaul]] honrada: smith implementou `useIsMobile` uma vez governando simetricamente os dois branches (confirm linha 1035 → Dialog desktop / Drawer mobile; detalhe linha 1117 → Sheet side=right desktop / Drawer mobile).
+- ui-tester pass G1 confirma o gate funcionando empiricamente no confirm (Dialog shadcn desktop 1280×900, zero drawer/sheet anti-pattern, console limpo).
+- G4 (console limpo) e G5 (zero regressão F050 + ReceiptModal F070) pass.
+- Dialog + Sheet shadcn reusados de `packages/ui` (Phosphor X).
+
+**Gap aceito**: G2 (modal-detalhe linha 1117 → Sheet desktop) não-exercitável porque **nenhum consumer no app atual** dispara `config.formOnModal=true`. Gap é de **cobertura de cenário** (faltam consumidores reais), não de **código**. A simetria do gate `useIsMobile` (mesmo hook, mesma estrutura ternária aplicada nos dois branches) faz G1 evidência forte de que G2 funcionará pelo mesmo mecanismo. G3 mobile bloqueado por F033 (débito transversal de viewport, mesma classe de F005/F007/F013/F014/F070).
+
+**Política**: aceite parcial análogo a F069 (gap de dados), F005/F007/F008 (gaps transversais F033/F035) e F070 (G2 deferred a F033). Bloquear F071 até consumer real emergir paralisaria o cutover sem ganho real de fidelidade — o consumer apareceria naturalmente em F015 (wizard) ou similares.
+
+**Observação Esc-não-fecha-Dialog**: isolada em F079 (P3 microfeature) — Botão Fechar e clique-fora funcionam; Esc provavelmente requer `autoFocus` ou `onEscapeKeyDown` explícito no Radix Portal. Não bloqueia F071 nem cutover.
+
+**Proibições mantidas**: nenhuma adicional. F078 desbloqueado quando consumer real com `formOnModal=true` emergir (provável: F015 wizard); alternativa é smoke route dedicada se nenhum consumer aparecer até cutover.
+
+**Impacto manifest**: F071 `accepted` ✓ 2026-05-16 (parcial); F078 adicionado P3 `todo`; F079 adicionado P3 `todo`.
+
 ### F070..F073 — onda de correções vaul/mobile-first em packages/ui
 
 **Decisão**: enfileirar 4 features dedicadas para corrigir violações da skill [[vaul]] em componentes do design system. Cada componente vira sua própria feature (não agrupar) porque cada um tem trade-off UX distinto (Dialog vs Sheet vs Popover) que precisa de aceitação independente.
