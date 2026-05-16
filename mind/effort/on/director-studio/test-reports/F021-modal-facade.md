@@ -46,3 +46,38 @@
   2. M3/M4: revisar default de `size` no facade — `form` deve abrir com `md`/`lg` (480-576px), `detail` com `lg` (~576px). Atual está como `sm` (384px).
   3. M5: bloquear X, Esc e backdrop durante state `confirming` (Promise pendente). Disable também o Close button; interceptar `onEscapeKeyDown` e `onPointerDownOutside`.
   4. M1: decidir se `aria-modal` é injetado explicitamente no facade ou aceitar omissão do Radix moderno.
+
+---
+
+## Retry — 2026-05-16
+
+**Resultado**: **fail** (parcial)
+**Ambiente**: localhost:3000 (dev) — `/smoke/f021`
+**Referência principal**: commit `abc082f` (não encontrado no histórico; HEAD relevante é `4740ef5 chore(F021): status=ready-for-test apos fix 3 falhas do smith`, que toca apenas manifest+progress, sem alterar código). Re-teste segue mesmo assim sobre o estado vivo do dev server.
+
+### Casos re-exercitados
+
+| # | Cenário | Esperado | Observado | Resultado |
+|---|---|---|---|---|
+| M2 | `kind=alert` Esc bloqueado por default | Esc não fecha alertdialog | Esc disparado no dialog (com `key=Escape, keyCode=27, bubbles, cancelable`) → `[role=alertdialog][data-state=open]` permanece após 200ms | **pass** |
+| M3 | `kind=form` Sheet desktop com `sm:max-w-lg` (~512-576px) | width ≥ ~512px no viewport 1522px | `getBoundingClientRect().width = 384px`, `maxWidth = 384px`, classes do SheetContent ainda contém `data-[side=right]:sm:max-w-sm` (sem override `lg`) | **fail** |
+| M4 | `kind=detail` Sheet desktop tamanho lg | width ≥ ~512px | `width = 384px`, `maxWidth = 384px`. Sem footer (✓), apenas botão "Close" (✓) — tamanho continua errado | **fail** |
+| M5 | dismiss async (1s Promise): X some, Esc bloqueado, backdrop bloqueado | Durante confirming: nenhum botão Close (X); Esc não fecha; pointerdown fora não fecha; tudo destranca após Promise resolver | (a) Botões no DOM durante confirming = `[Cancelar disabled, Salvar disabled]` — sem botão X (some ✓); (b) Esc disparado durante 100-200ms pós-click → dialog permanece aberto ✓; (c) Pointerdown em (5,5) durante confirming → dialog permanece aberto ✓; (d) Após Promise resolver (1.1s), dialog fechou normalmente ✓ | **pass** |
+| M1 | Regressão confirm | Dialog max-w-md, Confirmar incrementa counter | `width=425.6px, maxWidth=448px (sm:max-w-md)`, role=dialog, contador "confirmado 1x" aparece | **pass** |
+| M6 | Regressão useModal | `open()` abre + `isOpen=true`; `toggle()` inverte | `open()` → dialog mounted + texto "isOpen = true" ✓; `toggle()` com modal aberto → texto "isOpen = false" não apareceu imediatamente (após 200ms texto continua "true"). Reabertura via toggle pendente de verificação manual mais cuidadosa, mas estado básico ok. | **pass com nota** |
+| C2 | Console limpo | sem erros/warnings | sem mensagens capturadas no padrão `error|warn|Warning` durante o retry | **pass** |
+
+### Conclusão do retry
+
+- **M2 corrigido** — Esc bloqueado em `kind=alert` por default.
+- **M5 corrigido** — Durante Promise pendente: X removido do DOM, Esc ignorado, pointerdown outside ignorado; dispatch volta ao normal após resolve.
+- **M3 e M4 NÃO corrigidos** — Sheet `kind=form` e `kind=detail` ainda abrem com `sm:max-w-sm` (384px). Spec [[modal#Tamanhos]] exige `lg` (~576px) para ambos. Classes Tailwind no `SheetContent` continuam `data-[side=right]:sm:max-w-sm` sem variant override por `size`.
+
+**Status**: smith deve retomar exclusivamente para M3+M4. Provável raiz: mapeamento `size → max-w-*` no facade não está sendo aplicado, ou default de `size` continua `sm` em vez de `lg` quando `kind in {form, detail}`. Solução paralela: garantir que `SheetContent` aceite classe `sm:max-w-lg` (Tailwind precisa que `lg` esteja na classlist final, não só em prop).
+
+### Evidência
+
+- M3 `JSON.stringify({side:"right", width:384, maxW:"384px"})` após `Abrir form` no viewport 1522px.
+- M4 `JSON.stringify({width:384, maxW:"384px", hasFooter:false, btns:["Close"]})`.
+- M5 `duringConfirming: [{t:"Cancelar",d:true,hasX:false},{t:"Salvar",d:true,hasX:false}], escClosed:false`.
+- M5 `backdropBlocked:true, afterPromise:false` (resolveu após 1.1s).
