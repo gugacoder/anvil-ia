@@ -1,12 +1,14 @@
 {
-  "_comment": "Snippet de scripts npm pra dockerization. Cole dentro do objeto `scripts` do seu package.json.",
+  "_comment": "Snippet de scripts npm pra dockerization. Cole dentro do objeto `scripts` do seu package.json. Requer `dotenv-cli` em devDependencies.",
   "scripts": {
-    "platform:up": "node infra/scripts/platform.mjs up -d",
-    "platform:down": "node infra/scripts/platform.mjs down",
-    "platform:ps": "node infra/scripts/platform.mjs ps",
-    "platform:logs": "node infra/scripts/platform.mjs logs -f",
-    "docker:up": "dotenv -- docker compose -f infra/docker-compose.yml up -d",
-    "docker:down": "dotenv -- docker compose -f infra/docker-compose.yml down",
-    "docker:logs": "dotenv -- docker compose -f infra/docker-compose.yml logs -f"
+    "platform:up": "dotenv -- docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.platform.dev-ports.yml up -d",
+    "platform:down": "dotenv -- docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.platform.dev-ports.yml down",
+    "platform:ps": "dotenv -- docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.platform.dev-ports.yml ps",
+    "platform:logs": "dotenv -- docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.platform.dev-ports.yml logs -f",
+    "docker:up": "dotenv -- docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml up -d",
+    "docker:pull": "dotenv -- docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml pull",
+    "docker:down": "dotenv -- docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml down",
+    "docker:ps": "dotenv -- docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml ps",
+    "docker:logs": "dotenv -- docker compose -f infra/docker-compose.platform.yml -f infra/docker-compose.yml logs -f"
   }
 }

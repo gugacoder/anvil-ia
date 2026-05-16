@@ -50,6 +50,30 @@ Com o mobile firme, o desktop vira *expansao*, nao reinvencao:
 
 A transicao e via `useIsMobile()` (breakpoint 768px) — vive no app shell. Veja a skill `app-shell`.
 
+### Nao estique componentes no desktop
+
+No mobile, botoes e inputs ocupam `w-full` porque a largura da tela e o proprio container da acao — faz sentido. **No desktop nao.** Espichar um botao primario ate as bordas de um painel largo nao "aproveita o espaco", deixa a pagina amadora.
+
+Depois de planejar o mobile, voce ja tem o **conceito de disposicao** dos componentes e do conteudo. No desktop, o trabalho e *planejar o espaco otimizado* — agrupar acoes, alinhar campos em colunas, deixar respiro — nao deixar tudo crescer ate o limite.
+
+Regras praticas:
+
+- **Botoes**: largura intrinseca (pelo conteudo) ou largura fixa coerente com a grade. `w-full` so em mobile via responsive (`w-full md:w-auto`).
+- **Inputs e selects**: largura coerente com o dado que recebem. CEP nao tem a mesma largura que endereco. Em form vertical, alinhe por grade (12 cols), nao por `w-full` em tudo.
+- **Cards / paineis**: tem largura maxima de conteudo. Em telas muito largas, prefira **mais colunas** ou **mais respiro nas laterais** do que paineis gigantes com pouco conteudo dentro.
+- **Toolbars e shortcut bars**: agrupam, nao se espalham. Ações ficam juntas; o espaco vazio fica entre grupos.
+- **Modais e dialogs**: largura proporcional ao conteudo (sm/md/lg do shadcn), nunca colando nas bordas.
+
+**Quando esticar e legitimo** (cite o motivo no codigo se nao for obvio):
+
+- Data grid / tabela longa — a tabela cresce ate o container porque colunas precisam do espaco.
+- Editor de texto/codigo em tela cheia.
+- Canvas / area de trabalho visual (drag-and-drop, whiteboard).
+- Barra de progresso ou timeline que representa o range inteiro de algo.
+- Container de layout (grid, flex track) — esse e o trabalho dele, nao o conteudo dentro.
+
+Heuristica: se voce esta prestes a por `w-full` sem `md:w-auto` num componente *de acao* (botao, badge, chip, select pequeno), pare. Pense onde ele se ancora no desktop.
+
 ## Pilares de implementacao
 
 **DRY rigoroso (skill `ui-dry`)**: antes de criar componente/hook/utilitario, **procure em `packages/ui` (e nos outros packages compartilhados do monorepo)**. Se existe, use. Se quase existe, generalize la. Se nao existe e tem chance de ser usado em mais de uma tela ou em outro app/projeto, **crie em `packages/ui`** — nao no app. Apps consomem via `@workspace/ui`. Componentes em `packages/ui` sao a moeda de troca entre projetos do monorepo: o que voce coloca la hoje serve outro app amanha.
@@ -125,3 +149,5 @@ Antes de declarar pronta:
 - Declarar pronto sem empty/loading/error states.
 - "Faco o desktop primeiro porque e mais facil ver no meu monitor."
 - Tratar mobile como "versao reduzida" do desktop.
+- Botoes / inputs / selects `w-full` no desktop "pra aproveitar o espaco". Largura intrinseca ou grade — esticar so com justificativa clara (data grid, editor, canvas, timeline).
+- Paineis gigantes com pouco conteudo em telas largas em vez de mais colunas / mais respiro.
