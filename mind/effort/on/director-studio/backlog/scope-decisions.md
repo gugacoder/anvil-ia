@@ -11,6 +11,24 @@ Append-only. Cada decisão de escopo do curator (aceitar/recusar/dividir/adiar) 
 
 ## 2026-05-16
 
+### F069 — aceite parcial (caminho fornecedor-aws)
+
+**Decisão**: aceitar F069 com nota `(parcial)` e enfileirar F077 (P2) como follow-up para o happy path.
+
+**Critérios atendidos**:
+- Contrato [[processa-auth-fornecedor-aws]] publicado (F1..F25).
+- F003 implementa F1+F2+F15 com query SHA2_256 literal-copy do legado em `apps/api/src/routes/auth.ts:498-549`.
+- Archaeologist audit-pass estático cobre todas as asserções verificáveis sem dados.
+- ui-tester pass 8/8 em casos negativos reais Area 52 IMPERIAL (F1/F3/F9/F10/F12/F20/F24/F25) — resolver → query → 0 rows → 401 exercitado fim-a-fim.
+
+**Gap aceito**: F2/F4/F5/F15/F21 (happy path) não exercitáveis porque `portal.UsuarioFornecedor` na base `DBdirector_imperial_logistica_29` está vazia. Gap é de **dados**, não de **código**. A query é literal cópia do legado; o caminho funcionaria com fornecedor cadastrado.
+
+**Política**: aceite parcial análogo a F005 (C2 mobile → F033), F007 (C7 mobile → F033), F008 (C5 denial n/a → F035) e F052 (5 procs ausentes → F052b). Padrão consistente: aceitar quando o défice é externo (dados/ambiente) e enfileirar follow-up rastreável.
+
+**Proibições mantidas**: PROIBIDO modificar a base IMPERIAL para seed pontual (base de cliente, política transversal). F077 só desbloqueado quando (a) fluxo legado de admin cadastrar fornecedor real em Area 52, (b) Portal AWS real for wired ao Studio (fecha também F048), ou (c) seed em base de teste isolada.
+
+**Impacto manifest**: F069 `accepted` ✓ 2026-05-16 (parcial); F077 adicionado P2 `todo`.
+
 ### F070..F073 — onda de correções vaul/mobile-first em packages/ui
 
 **Decisão**: enfileirar 4 features dedicadas para corrigir violações da skill [[vaul]] em componentes do design system. Cada componente vira sua própria feature (não agrupar) porque cada um tem trade-off UX distinto (Dialog vs Sheet vs Popover) que precisa de aceitação independente.
