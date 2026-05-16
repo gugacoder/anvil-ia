@@ -244,3 +244,4 @@
 2026-05-16T09:42Z [archaeologist] F015 contract complete: W1..W10 assercoes adicionadas; decisao de escopo pendente sinalizada (chave wizard inexistente no engine)
 2026-05-16T14:30:00Z [curator] F015 scope-decision: (c) — deferir como P3, reabrir sob escopo (a) quando AppBuilder virar feature ativa. Pipeliner e feature do AppBuilder; cutover dos apps cliente vem primeiro por MISSION; sem caso de uso concreto fora do Pipeliner; opcao (a) preservada como dominante quando reabrir (template cadastravel no engine = coerencia recursiva MISSION). Detalhes em backlog/scope-decisions.md §F015.
 2026-05-16T14:30:01Z [curator] F015 priority=P3 status=deferred
+2026-05-16T00:00:00Z [archaeologist] feature-added: F016 Filtros componente -> atlas/concepts/legacy-contracts/filtros-componente.md (15 asserções FL1..FL15; 7 candidatas para curator: PowerSelect3, NullableBool, GridButton, select-options-endpoint, linked-filters, input-masking, date-components)
