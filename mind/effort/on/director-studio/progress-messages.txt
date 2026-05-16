@@ -266,3 +266,8 @@
 audit-pass: F018 -> audits/F018-20260516T140000Z.md (D6 coberto via preset last-2-days @ eb492ac; sem regressao)
 [ui-tester] F018 pass
 2026-05-16T15:00:00Z [curator] F018 accepted: 5 variantes date-picker + range + presets — paridade D1..D17 (D12/D17 notas, D16 deferred); ressalvas P3: aria-describedby Vaul + aria-selected re-open + smoke disabled
+2026-05-16T16:30:00Z [archaeologist] survey-started: F019 PowerSelect — escavação de `react-tools/components/PowerSelect3/PowerSelect.js`
+2026-05-16T16:45:00Z [archaeologist] note: F019 mal-rotulada no manifest — "typeahead + async" é ilusório; PowerSelect3 é renderer puro com filtro client-side (mínimo 3 chars hardcoded, sem debounce, sem cancel); carga remota delegada ao hook `useSelectFields` no consumidor; 3 versões coexistem (V1 PowerSelect.js com fetch interno via react-select, V2 PowerSelect2.js órfã, V3 PowerSelect3/PowerSelect.js modal próprio — canônica de produção)
+2026-05-16T17:00:00Z [archaeologist] feature-added: F019 → atlas/concepts/legacy-contracts/power-select (PS1..PS23 — 23 asserções cobrindo V3 placeholder/modal/3-chars-min/single+multi/chip-truncation/disabled/pipeliner/sync vazio + V1 endpoints proc/queryKey/api + useSelectFields fixedList curto-circuito); rótulo do manifest reescrito para refletir realidade
+2026-05-16T17:05:00Z [archaeologist] feature-added: F080 select-options-endpoint (sub-contrato candidato — convenção HTTP `/proc/`-POST / `/selectquery/`-GET / cru-GET / fixedList-inline; vive em useSelectFields)
+2026-05-16T17:05:00Z [archaeologist] feature-added: F081 linked-filters (sub-contrato candidato — cascading via `linkedFilters[]`; hoje em `<Filtros>.verifyLinkedFilters` + paralelo em useGenericFormUtils)
