@@ -17,6 +17,7 @@
 | Article | Summary | Compiled From | Updated |
 |---------|---------|---------------|---------|
 | [[-about]] | Contrato estrutural da base — filosofia LYT, locations, regras operacionais | atlas/maps/-about.md | 2026-05-11 |
+| [[atlas/meta/workspace-layout]] | Convenção `workspace/{project_slug}/` — pareamento code/narrative com `mind/effort/on/{slug}/` | atlas/meta/workspace-layout.md | 2026-05-15 |
 
 ### Concepts
 
@@ -35,8 +36,12 @@
 | [[atlas/concepts/scriptpack-appbuilder]] | Ferramenta CLI migrant.lib para provisionar schema do AppBuilder em SQL Server | calendar/notes/2026-05-14.md | 2026-05-14 |
 | [[atlas/concepts/director-studio]] | Plataforma única que substitui AppBuilder + Portal + Director.Web/WMS + ADM renderizando o metamodelo `acesso.*` em Node | calendar/notes/2026-05-15.md | 2026-05-15 |
 | [[atlas/concepts/processa-auth-paths]] | Os 5 caminhos de autenticação do ecossistema Processa (JWT/temp/LDAP-bridge/email/local) | calendar/notes/2026-05-15.md | 2026-05-15 |
+| [[atlas/concepts/processa-aws-ports]] | Mapping canônico das portas do `52.67.203.133` (4306 auth bridge, 5100 portal-aws, 5300 ADM, etc.) — referência rápida pra evitar confusão entre serviços | sources/* SQL seeds + appsettings + ADM vite.config | 2026-05-16 |
+| [[atlas/concepts/processa-adm-tool]] | Processa ADM (`:5300`) — UI React de suporte interno do time Processa; abriga o **Gerador de senha temp** que gera credencial pra logar como super-user `processa` | sources/engenharia--fabrica--dotnet--processa.ADM/Fontes/Processa.ADM.Website/ | 2026-05-16 |
 | [[atlas/concepts/acesso-metamodel]] | Schema `acesso.*` do DBdirector que descreve UI (apps/menus/páginas) como dados — substrato técnico do Studio | calendar/notes/2026-05-15.md | 2026-05-15 |
 | [[atlas/concepts/react-tools]] | Framework JS interno `@engenharia/react-tools` — runtime atual schema-driven, referência de contrato para o Studio | calendar/notes/2026-05-15.md | 2026-05-15 |
+| [[atlas/concepts/legacy-contracts/_about]] | Sub-namespace de contratos extraídos do legado pelo archaeologist | atlas/concepts/legacy-contracts/_about.md | 2026-05-15 |
+| [[atlas/concepts/ui-system/_about]] | Sub-namespace do design system catalogado pelo designer | atlas/concepts/ui-system/_about.md | 2026-05-15 |
 
 > Substrato meta-LYT (conceitos LYT, specs de locations, regras operacionais, átomos das camadas effort/x) vive em `atlas/meta/` e é alcançável via [[-about]]. Conceitos curados pelo agente sobre o mundo vão aqui em `atlas/concepts/` quando aparecerem.
 
@@ -56,4 +61,4 @@
 
 | Frente | Status | Descricao |
 |--------|--------|-----------|
-| `director-studio` | scoping | Protótipo da plataforma única em `workspace/director-studio/`. Backlog em `workspace/director-studio/backlog/`. Conceito em [[atlas/concepts/director-studio]]. |
+| [[mind/effort/on/director-studio/README\|director-studio]] | on | Plataforma única, 100% RTM. Time: archaeologist + designer + curator + smith + ui-tester. Manifesto em [[feature-manifest]]. |
