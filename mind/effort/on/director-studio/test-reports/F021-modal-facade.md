@@ -81,3 +81,38 @@
 - M4 `JSON.stringify({width:384, maxW:"384px", hasFooter:false, btns:["Close"]})`.
 - M5 `duringConfirming: [{t:"Cancelar",d:true,hasX:false},{t:"Salvar",d:true,hasX:false}], escClosed:false`.
 - M5 `backdropBlocked:true, afterPromise:false` (resolveu após 1.1s).
+
+---
+
+## Retry 2 — 2026-05-16
+
+**Resultado**: **fail (parcial)**
+**Ambiente**: localhost:3000 (dev) — `/smoke/f021`
+**Referência**: commit `ecce897` (fix sheet.tsx removeu `data-[side]:sm:max-w-sm` hardcoded).
+**Viewport**: 1522×900 (desktop).
+
+### Casos re-exercitados
+
+| # | Cenário | Esperado | Observado | Resultado |
+|---|---|---|---|---|
+| M3 | `kind=form` Sheet size `lg` | width ≥ ~512px (`sm:max-w-lg`) | `width=512px, maxW=512px, side=right`. SheetContent agora SEM `data-[side=right]:sm:max-w-sm` hardcoded; `sm:max-w-lg` aplicado via prop `size`. | **pass** |
+| M4 | `kind=detail` Sheet size `lg` | width ≥ ~512px | `width=512px, maxW=512px, side=right`. Sem footer (`btns=["Close"]`). | **pass** |
+| M1 | Regressão confirm `max-w-md` | width ~448px, Confirmar incrementa counter | `width=448px, maxW=448px, role=dialog`; click Confirmar → `confirmado 1x`. | **pass** |
+| M2 | Regressão alert Esc bloqueado | Esc não fecha alertdialog | Alert abre (`m2_open=true`); Esc disparado → alert permanece (`m2_stillOpen=true`). | **pass** |
+| M5 | Regressão async dismiss bloqueado | Durante `confirming`: Esc e backdrop NÃO fecham; X removido; libera após Promise resolve | **flake observado**. Em 3 runs consecutivos: (a) X removido ✓ (apenas Cancelar+Salvar no DOM, ambos `disabled=true`); (b) Esc dispatch a t+80ms após primary.click → iter 0: dialog permanece (afterEsc=1) ✓; iter 1 e 2: dialog fechou (afterEsc=0) ✗. Em outra run isolada com `pointerdown` no overlay (`bg-black/10`) a t+50ms: dialog fechou imediatamente (`afterPointerDown_50ms: count=0`). Botões ainda disabled no momento do dispatch. | **fail (regressão flaky)** |
+| M6 | Regressão `useModal` | `open()` abre + `isOpen=true`; Esc fecha + `isOpen=false` | `open()` → dialog mounted + texto "isOpen = true" ✓; Esc → dialog desmonta + `isOpen=false` ✓. | **pass** |
+
+### Conclusão do retry 2
+
+- **M3 e M4 corrigidos** pelo commit `ecce897`. SheetContent passou de 384px (`sm:max-w-sm` hardcoded) para 512px (`sm:max-w-lg` via prop `size=lg`).
+- **M2, M1, M6 mantêm comportamento correto** após o fix.
+- **M5 apresentou regressão flaky**: o bloqueio de Esc/backdrop durante `confirming` não é mais determinístico. Em alguns runs Esc fecha o dialog mesmo com botões ainda `disabled`. Possíveis causas: handler `onEscapeKeyDown` interceptado de forma assíncrona perde corrida com o teclado; ou estado `confirming` não está propagando corretamente para os handlers de `onEscapeKeyDown`/`onPointerDownOutside` do Radix em opens subsequentes. Backdrop click via `pointerdown` no overlay também fecha durante Promise pendente (`afterPointerDown_50ms: count=0`).
+
+**Status**: smith deve retomar para investigar regressão M5. O fix do sheet.tsx pode ter afetado lógica de bloqueio assíncrono. Como M5 era pass na Retry 1 e agora é fail intermitente, recomendo revisar o que mudou no caminho de `onEscapeKeyDown`/`onPointerDownOutside` ao remover o hardcode de `data-[side]:sm:max-w-sm`.
+
+### Evidência
+
+- M3 `{width:512, maxW:"512px", side:"right"}` no viewport 1522px.
+- M4 `{width:512, maxW:"512px", side:"right", btns:["Close"]}`.
+- M5 run 1 (3 iter): `[{iter:0, after:1, btns:[d:true,d:true]}, {iter:1, after:0, btns:[d:true,d:true]}, {iter:2, after:0, btns:[d:true,d:true]}]` — Esc fecha em 2 de 3 runs apesar de botões disabled.
+- M5 backdrop pointerdown isolado: `afterPointerDown_50ms: count=0` (dialog fechou imediatamente, salvo=1 só aparece após resolve da Promise — operação ficou órfã).
