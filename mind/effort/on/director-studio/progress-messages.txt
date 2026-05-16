@@ -242,3 +242,5 @@
 2026-05-16T14:05:00Z [curator] F073 accepted: skill [[vaul]] honrada (Sheet shadcn side=right desktop / Drawer mobile via useIsMobile); TC1/TC3/TC4 pass em desktop 1280x900 ([data-slot=sheet-content][data-side=right] + overlay shadcn + zero [vaul-drawer]; cascade/filtro <mark>x2/Limpar/Salvar/Esc/outside-click; console limpo sem Maximum update depth, sem regressão F013); TC2 mobile->F033 (mesma politica F005/F007/F013/F014/F050/F070/F071/F072); aceite parcial analogo a F070/F071/F072.
 
 2026-05-16T09:42Z [archaeologist] F015 contract complete: W1..W10 assercoes adicionadas; decisao de escopo pendente sinalizada (chave wizard inexistente no engine)
+2026-05-16T14:30:00Z [curator] F015 scope-decision: (c) — deferir como P3, reabrir sob escopo (a) quando AppBuilder virar feature ativa. Pipeliner e feature do AppBuilder; cutover dos apps cliente vem primeiro por MISSION; sem caso de uso concreto fora do Pipeliner; opcao (a) preservada como dominante quando reabrir (template cadastravel no engine = coerencia recursiva MISSION). Detalhes em backlog/scope-decisions.md §F015.
+2026-05-16T14:30:01Z [curator] F015 priority=P3 status=deferred

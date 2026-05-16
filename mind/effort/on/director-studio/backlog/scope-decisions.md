@@ -11,6 +11,43 @@ Append-only. Cada decisão de escopo do curator (aceitar/recusar/dividir/adiar) 
 
 ## 2026-05-16
 
+### F015 — scope-decision (c): deferir como P3, reabrir junto com AppBuilder
+
+**Decisão**: opção **(c)** — deprecar F015 como feature **ativa** agora, rebaixar a **P3 `deferred`**, com nota explícita de reabertura sob escopo **(a)** (chave `wizard` como template cadastrável no engine) quando AppBuilder virar feature ativa do Studio.
+
+**Razão central — alinhamento com MISSION**:
+
+A MISSION declara: *"AppBuilder será um app do próprio Studio — quando cadastrarmos templates de edição de páginas no banco, o AppBuilder aparece como mais um app no menu, indistinguível dos outros pelo runtime. Recursivo: a ferramenta que cadastra apps roda dentro da plataforma que renderiza apps."*
+
+Sob essa lente, o Pipeliner é uma feature **do AppBuilder**, não do Studio core. As 3 opções de escopo do contrato [[model-valor-wizard]] §⚠️ se reorganizam pela MISSION:
+
+- **(a) `wizard` como template no engine** — coerência máxima com MISSION (template cadastrável em `TBmodel_pagina` resolve Pipeliner como dado, não como código hardcoded; AppBuilder cadastra wizards como cadastra qualquer outra page). Mas requer engine maduro, design de schema novo (sem precedente legado), e caso de uso concreto — que **é** o Pipeliner do AppBuilder, que ainda é P3.
+- **(b) Componente reusável fora do engine** — viável tecnicamente, mas **contradiz a MISSION**: deixaria o Pipeliner como rota hardcoded `/areas/appbuilder/pipeliner`, e qualquer wizard novo viraria código manual em vez de template cadastrável. Empurra o AppBuilder para fora do paradigma "app indistinguível pelo runtime".
+- **(c) Deprecar como feature ativa** — preserva (a) como caminho futuro, evita decisão prematura sem caso de uso concreto, libera o curator/smith/designer para focar nos renderers core do cutover dos apps cliente (F016 filtros, F018 datepicker, F019 powerselect, F020 notifications, F021 modal, F025/F026 admin).
+
+**Por que (c) e não (a) já**:
+
+1. **Cutover dos apps cliente vem primeiro** — o Studio precisa entregar os apps que rodam **dentro** dele (portal-director, portal-aws, processa.adm, mobile) antes de entregar o app que cadastra apps (AppBuilder). Tempo de engenharia hoje em F015 é tempo desviado do bloco P0/P1 que destrava cutover.
+2. **Caso de uso único hoje = Pipeliner = AppBuilder** — não há segunda tela em Área 52 / sources que precise de wizard genérico. Probe cross-source não identificou nenhuma rota legada operando em modo multi-step além de `/#/pipeliner` (ponto aberto §8 do contrato). Decidir schema declarativo de wizard com 1 caso de uso é greenfield sem disciplina.
+3. **Decisão (a) sob (c) preserva todas as opções** — quando AppBuilder for reaberto, F015 reabre sob (a) sem perda; o contrato [[model-valor-wizard]] permanece como referência empírica (W1..W10) do comportamento legado a paralelar.
+
+**Por que não (b)**:
+
+(b) também é viável, mas (b) compete com (a) por mindshare: se hoje fizermos (b), criamos um precedente "wizards no Studio são componentes, não templates" que dificulta (a) no futuro. Como AppBuilder é P3, evitar decisão (b) preserva (a) como caminho dominante quando reabrir. (b) só faria sentido se houvesse demanda concreta no escopo P0/P1 de cutover — e não há.
+
+**Reabertura — gatilho explícito**:
+
+F015 sai de `deferred` para `todo` (sob escopo (a)) quando **qualquer um** destes ocorrer:
+- AppBuilder for promovido a feature ativa (cutover do AppBuilder no roadmap), OU
+- Archaeologist identificar segunda tela no legado/Área 52 operando como wizard multi-step (revisão do ponto aberto §8 do contrato), OU
+- Cliente/PERSONA pedir wizard genérico no Studio core.
+
+Até lá, fica P3 `deferred`. Contrato [[model-valor-wizard]] segue válido como cobertura empírica do legado.
+
+**Impacto no manifest**: F015 `Priority=P3`, `Status=deferred`. Manifest acima atualizado com nota explícita. Backlog do arqueólogo §"Features ainda não enumeradas" mantém Mobile/SignalR/edoc/sped/fornecedor — F015 é caso à parte (escavada, contratada, deferida por decisão de timing, não por gap de descoberta).
+
+**Sem features novas enfileiradas** desta decisão (diferente de aceites onde follow-ups viram F0XX): deferral não gera débito; reabertura é o "follow-up" implícito.
+
 ### F069 — aceite parcial (caminho fornecedor-aws)
 
 **Decisão**: aceitar F069 com nota `(parcial)` e enfileirar F077 (P2) como follow-up para o happy path.
