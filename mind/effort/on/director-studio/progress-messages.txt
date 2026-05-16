@@ -51,3 +51,4 @@
 2026-05-16T20:00:00Z [curator] F026 scope-decision: deferred P3 — segue politica F015/F025 (AppBuilder)
 
 2026-05-16T23:45:00Z [smith] status=ready-for-test: F027 anti-FOUC theme bootstrap — script inline em apps/director-studio/index.html (head, antes do bundle vite) le localStorage["director-studio:theme"] (= storageKey do ThemeProvider em main.tsx, default "auto"), resolve via window.matchMedia("(prefers-color-scheme: dark)") quando auto, aplica root.classList.remove("light","dark") + add(resolved) + root.style.colorScheme=resolved (mirror exato do applyTheme do ThemeProvider). Try/catch silencioso fallback default. ThemeProvider no mount reaplica mesma classe — sem flash (remove+add idempotente). Typecheck verde @workspace/director-studio. Smoke manual: localStorage["director-studio:theme"]="dark", reload, primeira pintura ja dark.
+[ui-tester] F027 pass
