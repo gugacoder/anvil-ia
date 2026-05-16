@@ -5,7 +5,7 @@ tags: [contract, legacy, react-tools, appbuilder, pipeliner, wizard, steps, mode
 sources:
   - "calendar/notes/2026-05-15.md"
 created: 2026-05-15
-updated: 2026-05-15
+updated: 2026-05-16
 ---
 
 # Contrato: renderer wizard / Steps (F015)
@@ -201,6 +201,120 @@ Ambos os modos usam a mesma máquina. Diferença: ao entrar pelo grid de pipelin
 7. **`refreshParams` quando vem do tree-click (sidebox)** — `Pipeliner.jsx:89-119` — duplica a lógica de navegação entre steps. Não há atomicidade entre tree-click e step-validate: se o user clica num nó da tree com form inválido no step atual, o wizard navega mesmo assim (perdendo o que foi preenchido). Defeito ou design? Não dá pra inferir.
 8. **Não foi escavado se existe segunda instância de "wizard" em outro lugar do legado** (ex.: cadastro em múltiplas etapas no Portal Director — instalação, configuração de empresa, onboarding). Probabilidade baixa (engine schema-driven prefere abas a wizards), mas merece grep cross-source antes de F015 começar. Sugerir backlog.
 
+## Asserções observáveis
+
+Asserções factuais sobre o legado (Pipeliner do AppBuilder), descritas para serem verificadas contra a fonte. **Não prescrevem implementação no Studio** — somente descrevem o que o legado faz hoje, com citação `arquivo:linha`. A decisão de escopo de F015 (ver §⚠️ Decisão pendente) determina quais destas asserções viram mandato de paridade no Studio.
+
+### W1 — Discriminador: o wizard é uma rota dedicada, não uma chave do engine
+
+O engine schema-driven `<GenericPages/>` / `<GenericPage/>` **não reconhece chave `wizard` nem `steps`**. O acesso ao wizard de Pipeliner é puramente por rota da SPA AppBuilder: `path: '/pipeliner'` em `sources/engenharia--fabrica--dotnet--processa.appbuilder/Fontes/website/src/routes/index.jsx:141`, registrada com `<PipelinerProvider>` em volta (`:30, :145`) e lazy import do componente em `:27`. Dentro do componente, a bifurcação de step é `switch (indice.indice)` literal em `routes/Pipeliner/Pipeliner.jsx:32-55`. **Não há precedente de `DFtipo='wizard'` no `<GenericPage/>`** — verificável por busca exaustiva: zero hits para `'wizard'`/`'steps'` como discriminantes em `react-tools/src/components/GenericPage/`.
+
+### W2 — Forma do model: não existe model JSON para wizard
+
+O wizard do Pipeliner **não é descrito por nenhum JSON em `acesso.TBmodel_pagina.DFvalor`**. A "model" passada ao step 0 (Home) é um literal hardcoded `pagePipeliner` inline em `routes/Pipeliner/Pipeliner.jsx:188-253` — modela apenas a lista (`<GenericPage/>` clássico), não a máquina de steps. Os formulários dos steps 1/2/3 são JSX imperativo em `AddPipeliner.jsx`, `AddStage.jsx`, `AddAction.jsx` — sem leitura de schema. **Não há atributos esperados de "model wizard"** porque a chave não existe.
+
+### W3 — Estado dos steps: `useState({indice: 0, parametros: {}})` no provider
+
+O estado da máquina vive no contexto `PipelinerProvider`. Inicialização exata em `components/Pipeliner/hooks/usePipeliner.js:6-9`: `useState({ indice: 0, parametros: {} })`. **Sempre começa em 0 (Home).** Nada lido de URL, sessionStorage, localStorage ou cookie — confirmado pela ausência de qualquer outro `useState`/`useEffect` em `usePipeliner.js:4-89`.
+
+Estados auxiliares no mesmo hook: `pageSideBox` (default `'home'`, `:10`), `nameButtonFooter` (default `'Adicionar estágio'`, `:11`), `disableBtnStage` (default `false`, `:12`), `pipelineConfigRef` (default `null`, `:5`).
+
+### W4 — Interface por step: `forwardRef` + `useImperativeHandle` expondo `{validate, savePipeline?, TYPE}`
+
+Cada step é um `forwardRef` que injeta no `componetRef` do orquestrador (`routes/Pipeliner/Pipeliner.jsx:14` — `componetRef = useRef()`; passado como `ref={componetRef}` em `:40, :44, :52`):
+
+- `AddPipeliner` expõe `{validate, savePipeline, TYPE: 'AddPipeliner'}` — `components/Pipeliner/Componentes/AddPipeliner.jsx/AddPipeliner.jsx:43-55`.
+- `AddStage` expõe `{validate, TYPE: 'AddStage'}` — `components/Pipeliner/Componentes/AddStage/AddStage.jsx:154-191` (TYPE literal no objeto retornado).
+- `AddAction` expõe `{validate, TYPE: 'AddAction'}` — `components/Pipeliner/Componentes/AddAction/AddAction.jsx:79-126`.
+
+A interface é **dinâmica**: `componetRef` é único e sobrescrito a cada troca de step (porque o anterior desmonta no `switch`). `validate()` retorna `{validade: boolean, data: any}` em todos os três; `savePipeline()` existe só em `AddPipeliner`.
+
+### W5 — Navegação: footer "Próximo/Salvar" só avança se `validate()` retorna `validade=true`
+
+O handler do botão azul do footer é `handlevalidate()` em `routes/Pipeliner/Pipeliner.jsx:70-81`. Chama `componetRef.current.validate()` (`:72`), recebe `{validade, data}`, e em `:73` **aborta silenciosamente** se `validade=false` (`if (!validade) return;` — sem `setState`, sem warning, sem mensagem agregada). Em sucesso, ramifica por `TYPE` (`:75-79`):
+
+- `TYPE === 'AddAction'` ou `'AddStage'` → `setIndice(data)` — o próprio step decide o próximo índice (data carrega `{indice, parametros, ...}`).
+- Caso contrário (`TYPE === 'AddPipeliner'`) → `Avancar(data)` — orquestrador incrementa `indice.indice + 1` (`:121`) levando `data` como `parametros`.
+
+**Não há fallback global de mensagem** — cada step exibe seus próprios `<span class="span-campo-obrigatorio">` inline.
+
+### W6 — Sidebox tree lateral: navegação não-sequencial via `refreshParams`
+
+Paralelo ao footer, `<SideBox/>` (renderizado em `routes/Pipeliner/Pipeliner.jsx:267-273` aproximadamente, container de `PipelinerProvider`) exibe árvore `pipeline → estágios → ações`. Cliques na árvore disparam `refreshParams(e)` (`:89-119`), que:
+
+- Se `e.hasOwnProperty('id')` (`:93`): faz `POST /appbuilder/proc/pipeliner.sp_consultar_pipeliner_porId` (`:96`), popula `_indice.parametros` com `dados.pipeliner` (`:102, :104`), define `_indice.indice = getIndice(e.page)` se `page === Pipeliner`.
+- Senão (`:110-115`): para `e.page === Stage|Action`, faz `_indice = { ...indice, indice: getIndice(e.page), ...e }` — **navega direto pro step do nó clicado** sem passar por validate.
+
+`pipelineConfigRef.current = _indice` (`:117`) e `setIndice(_indice)` (`:118`) aplicam o salto. **Não há atomicidade**: clicar num nó da árvore com form inválido no step atual navega assim mesmo, perdendo o que estava preenchido (porque o `useState` interno do step desmonta).
+
+### W7 — Persistência one-shot: botão "Concluir" no step 1 dispara `sp_persistirPipeliner` (XML envelope)
+
+O wizard **não salva por step**. A única persistência ao banco é disparada pelo botão verde "Concluir", visível apenas em `indice.indice === 1` (renderizado em `routes/Pipeliner/Pipeliner.jsx:158-185` — `DivBottomMain`). Handler: `SavePipeline()` (`:82-87`) → `componetRef.current.savePipeline()` (`AddPipeliner.jsx:57-95`):
+
+1. `POST /appbuilder/proc/pipeliner.sp_persistirPipeliner` (`AddPipeliner.jsx:57-95`) com payload `{Parametro: {idPipeline, nome, urlBase, urlBaseHomolocacao, statusPipeliner, stages, variaveis}}`.
+2. Backend `Processa.AppBuilder.Repositories/PipelinerRepository.cs:9-80` serializa para XML envelope e executa a proc `pipeliner.sp_persistirPipeliner` (`sources/engenharia--fabrica--sql--processa-appbuilder/pipeliner/2-procedures/pipeliner.sp_persistirPipeliner.sql:38-140` — parse XML → `#temp_stages` → INSERT/UPDATE em `pipeliner.TBpipeline` e `pipeliner.TBstage` em transação única).
+3. Em sequência (`AddPipeliner.jsx:57-95`), se (1) retorna 200, `autoSave(idPipeline)` → `POST /api/pipeliner/savePipelineNewDB`. Falha aqui apenas `warning`, **não bloqueia o término**.
+
+Após sucesso de (1), `SavePipeline()` chama `Cancelar()` (`Pipeliner.jsx:84`) que decrementa pro Home. **Não há tabela intermediária de rascunho** — confirmado pela ausência de qualquer chamada de save em `AddStage.jsx`, `AddAction.jsx`, ou nos handlers de "Salvar Estágio"/"Salvar Ação" (que só fazem `setIndice` no orquestrador).
+
+### W8 — Sem deep-link e sem persistência de sessão: refresh perde tudo
+
+`indice` é puramente `useState` em memória do `PipelinerProvider` (`usePipeliner.js:6-9`). Verificável:
+
+- **Nenhuma escrita** em `sessionStorage`/`localStorage` em `usePipeliner.js:1-92`, `PipelinerContext.jsx:1-48`, `routes/Pipeliner/Pipeliner.jsx:1-300`.
+- **Nenhum uso de `useParams`/`useSearchParams`/`useLocation`** para hidratar step a partir da URL — a rota `/pipeliner` em `routes/index.jsx:141` é estática, sem `:step` ou querystring.
+- `useEffect([indice.indice])` em `routes/Pipeliner/Pipeliner.jsx:132-156` apenas reage à troca de step para ajustar sidebox+label do botão; **se `indice.indice === 0`, reseta para `{indice: 0, parametros: {}}`** (`:134, :139`).
+
+Recarregar a página, navegar para outra rota e voltar, fechar/reabrir o browser — todos descartam form + posição. O usuário sempre reentra em Home (step 0).
+
+### W9 — Cada step desmonta e remonta: estado vive em `indice.parametros` no orquestrador
+
+O `switch(indice.indice)` em `routes/Pipeliner/Pipeliner.jsx:32-55` retorna JSX diferente por step, então React desmonta o anterior e monta o próximo. O `useState` interno de cada step é **zerado a cada entrada**. Para preservar dados entre steps, cada step **lê `props.parametros` no init** (ex.: `AddPipeliner.jsx:18-36` — `useState(() => ({ ...props.parametros }))`-style) e **devolve dados via `validate().data`** que o orquestrador grava em `indice.parametros` (`Pipeliner.jsx:78, 121`).
+
+`<AddAction/>` tem `key={indice.indexAction}` (`:52`) — força remount quando muda a ação editada (zera form interno; carrega da `props.listActions[indexAction]`).
+
+### W10 — Footer dinâmico: label e visibilidade por step
+
+`DivBottomMain` (`routes/Pipeliner/Pipeliner.jsx:158-185`):
+
+- Botão "Cancelar" — sempre presente exceto no Home (gate em `indice.indice > 0` dentro de `Cancelar()`, `:124`).
+- Botão "Concluir" (verde) — visível apenas em `indice.indice === 1` (`:158-185` condicional). Dispara `SavePipeline()`.
+- Botão dinâmico (azul) — label vem de `nameButtonFooter` (`'Adicionar estágio'` em step 1, `'Salvar Estágio'` em step 2, `'Salvar Ação'` em step 3 — atribuído em `:141-152`). Dispara `handlevalidate()`. **Desabilitado** quando `indice.indice === 2 && disableBtnStage` (estágio sem ações — gate em `AddStage.jsx:192-194`).
+
+## ⚠️ Decisão pendente (escopo F015)
+
+**F015 não pode entrar em fila para implementação até o curator decidir o escopo.** A escavação confirma que a chave `wizard` que dá nome à feature **não existe no engine schema-driven do legado**. O único wizard concreto é a rota `/pipeliner` do AppBuilder, máquina hardcoded de 4 steps. As 3 opções de escopo:
+
+### Opção (a) — Inventar a chave `wizard` no engine schema-driven do Studio sem precedente legado
+
+Criar um novo discriminante `DFtipo='wizard'` (ou `wizard`/`steps` em algum nível do `DFvalor`) reconhecido por `<GenericPage/>` (ou equivalente do Studio), com um schema declarativo inventado. **Impacto**:
+
+- Sem contrato legado a respeitar — desenho greenfield, decidido pelo time do Studio.
+- Nenhum dado existente em `TBmodel_pagina.DFvalor` precisa ser migrado (não há registros wizard hoje).
+- Aumenta a superfície do engine: o engine passa a saber renderizar máquinas de estado, validação por step, navegação não-sequencial via tree, persistência one-shot vs. por-step. Cada uma é uma decisão de design nova.
+- O Pipeliner do AppBuilder continua existindo como tela hand-rolled — o wizard novo seria para outras features. **Risco**: feature sem caso de uso concreto ainda.
+
+### Opção (b) — Reescrita declarativa da máquina do Pipeliner como componente reusável (não-schema-driven)
+
+Manter o wizard fora do engine schema-driven; criar no Studio um componente `<Wizard/>` (ou equivalente) que receba steps como children/props (não via `TBmodel_pagina.DFvalor`). Usado pelo Pipeliner reescrito e por outras telas hand-rolled futuras. **Impacto**:
+
+- Sub-features que provavelmente precisam ser cobertas para paridade com o Pipeliner: validate-per-step (W4, W5), tree-jump não-sequencial (W6), persist one-shot (W7), reset on refresh (W8), unmount-remount com estado externo (W9), footer dinâmico (W10).
+- Bloqueia também por: F022 (`ReorderableGrid`, citado em `AddStage.jsx` para lista de ações) precisa estar pronto.
+- Bloqueia por: sub-contrato `pipeliner-wizard-typeaction` (sub-renderer por tipo no step 3 — 6 tipos: Request/SOAP/Query/Log/IMAP/SMTP) não está catalogado.
+- Não introduz nova superfície no engine; alinha com o legado.
+
+### Opção (c) — Deprecar F015
+
+Aceitar que a chave `wizard` é fantasma (nome do manifest sem fonte). Marcar F015 `deprecated` no manifest. **Impacto**:
+
+- Se Studio quiser implementar o Pipeliner do AppBuilder, vira uma feature nova (`F-pipeliner-appbuilder` ou similar) com escopo claro: portar a tela `/pipeliner`, não inventar abstração.
+- Risco: outras features ainda não escavadas podem precisar de wizard genérico. Curator deve confirmar que nenhuma outra rota do legado opera em modo multi-step **antes** de deprecar (ver Ponto Aberto §8 nesta nota — escavação cross-source ainda não feita).
+
+### Sinalização ao curator
+
+Esta seção é a saída de bloqueio: **F015 fica `todo` no manifest** até o curator escolher (a)/(b)/(c). Smith não pode pegar F015. Designer não deve desenhar UI para F015 antes da decisão (especialmente porque (c) descarta a feature inteira).
+
 ## Sources
 
 - [[calendar/notes/2026-05-15.md]]
+- [[calendar/notes/2026-05-16.md]]
