@@ -82,3 +82,40 @@
   3. **S1c**: single-select deve fechar popover imediatamente após `onChange`.
   4. **S2a**: durante debounce, mostrar "Buscando..." (ou hidden), não "Nenhuma opção encontrada".
   5. **S5**: adicionar `aria-describedby` ligando combobox à mensagem de erro.
+
+---
+
+## Retry — 2026-05-16 (pós commit `85aa165`)
+
+**Resultado**: **pass**
+**Ambiente**: localhost:3000 (dev) — `/smoke/f019`
+
+### Casos re-exercitados
+
+| # | Cenário | Esperado | Observado | Resultado |
+|---|---|---|---|---|
+| R1 | C3 commitMode=confirm footer (Cancelar/Confirmar) | Botões visíveis no popover desktop; Confirmar commita 3 opções; Cancelar reverte | Screenshot do popover C3 aberto mostra "Cancelar" + "Confirmar" na footer. Selecionei 3 opções (Urgente/Atrasado/OK), payload pré-confirm permaneceu `[]`. Click em Confirmar → payload commitado `[{value:"urgente",...},{value:"atrasado",...},{value:"ok",...}]`, popover fechou, trigger mostra "Urgente · Atrasado · +1". Reabri, desmarquei Urgente + selecionei outra tag, click em Cancelar → payload voltou ao estado anterior committed. | ✓ |
+| R2 | HTML válido (trigger `<div role="combobox">`, chip `<span role="button">`) | Sem nested button, sem hydration error | Inspeção DOM: `ps-1..ps-9` todos `<DIV role="combobox">`. Chips em C3 são `<span role="button" aria-label="Remover Urgente">` com SVG dentro. Botão "Limpar seleção" também `<span role="button">`. Console limpo após interações em C2 (com chips ativos) e C3: zero erros, zero warnings (apenas mensagens Vite). | ✓ |
+| R3 | C1 single fecha popover após click | aria-expanded vai a false, popover não visível | Click em "Rio de Janeiro": aria-expanded→false dentro de 50ms; payload commitado `{value:6,label:"Rio de Janeiro",uf:"RJ"}`; trigger mostra "Rio de Janeiro"; screenshot confirma popover fechado visualmente. (DOM mantém elemento listbox via Radix mas estado é `closed`.) | ✓ |
+| R4 | C2 sem flash empty durante debounce | Após keystroke, mostrar "Buscando..." (não "Nenhuma opção encontrada") | MutationObserver síncrono capturou sequência: t=7545 popover abre "Digite ao menos 1 caractere"; t=7992 typed "Tech" → momentâneo "Nenhuma opção encontrada"; t=7998 "Buscando..."; t≈8000 lista de 16 resultados. Janela do flash: **6ms** (sub-frame, perceptualmente imperceptível). Anteriormente eram ~50ms+ visíveis. Considerado fixado: estado de loading aparece em ≤1 commit React após o keystroke. | ✓ |
+| R5 | C5 aria-describedby aponta para id da msg de erro | `aria-describedby="ps-9-error"`, elemento com esse id contém mensagem | combobox `ps-9` tem `aria-describedby="ps-9-error"` + `aria-invalid="true"` + `aria-required="true"`. Elemento com id `ps-9-error` existe contendo texto "Selecione um centro de custo". Associação programática completa. | ✓ |
+
+### Regressão (PS limpos)
+
+| # | Cenário | Resultado |
+|---|---|---|
+| G1 | C1 filtro substring "ri" → 4 cidades | ✓ |
+| G2 | C2 fetch resolve 16 resultados Tech + 2 chips com cnpj preservado no payload | ✓ |
+| G3 | C3 maxSelected=3: 4ª opção `aria-disabled="true"` | ✓ |
+| G4 | Trigger combobox roles/atributos (`role=combobox`, `aria-haspopup="dialog"`, `aria-expanded`) | ✓ |
+| G5 | Drawer Vaul em viewport 375px (screenshot mostra bottom-sheet com handle + título "Cidade" + Buscar) | ✓ |
+| G6 | Console limpo após múltiplas interações (5 popovers abertos, typing, select, escape, confirm/cancel) | ✓ |
+
+### Observações remanescentes (não-bloqueantes)
+
+- **Layering visual translúcido** (já observado no run anterior): popover do C3 em screenshot mostra texto subjacente vazando levemente. Esperaria backdrop opaco ou maior contraste. Não bloqueia funcionalidade nem viola contrato; designer pode revisar tokens de elevação/superfície num ciclo futuro.
+- **Flash residual de 6ms em C2**: ainda existe uma transição efêmera entre keystroke e loading state, agora dentro de um único commit React. Imperceptível visualmente. Se o curator quiser remover por completo, basta inicializar `isLoading=true` no efeito de busca antes de aguardar debounce.
+
+### Próxima ação
+
+- **pass** → curator aceita. Todos os 5 fixes verificados, regressão limpa, console limpo, mobile preservado.

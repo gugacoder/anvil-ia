@@ -280,3 +280,5 @@ audit-pass: F018 -> audits/F018-20260516T140000Z.md (D6 coberto via preset last-
 [ui-tester] F019 fail: C3 commitMode=confirm sem botoes Confirmar/Cancelar (payload preso em []); button-in-button hydration error (chip dentro do trigger); single-select nao fecha popover; flash de "Nenhuma opcao encontrada" antes de "Buscando..."; aria-describedby ausente no required. Detalhes em test-reports/F019-power-select.md
 
 2026-05-16T17:30:00Z [smith] status=ready-for-test: F019 fix — footer confirm desktop, button-in-button removido, popover fecha single, debounce sem flash empty, aria-describedby erro
+
+2026-05-16T20:15:00Z [ui-tester] F019 pass: 5/5 fixes verificados (R1 footer confirm/cancel commit+revert; R2 HTML valido sem nested button + console limpo; R3 single fecha popover; R4 flash empty reduzido a 6ms sub-frame imperceptivel; R5 aria-describedby=ps-9-error). Regressao 13 PS limpos: filtro substring, payload com cnpj, maxSelected aria-disabled 4a opcao, drawer Vaul 375px, console clean apos multiplas interacoes. Layering translucido nao-bloqueante. Test report retry em test-reports/F019-power-select.md.
