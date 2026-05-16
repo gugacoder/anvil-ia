@@ -78,3 +78,4 @@
 [ui-tester] F034 pass — repairMojibake server-side: payload UTF-8 limpo (hex 43 6f 6e 66 69 67 75 72 61 c3 a7 c3 b5 65 73), DOM aria-label correto em rail mode, 11 labels sem regressao, console limpo
 2026-05-16T23:00:00Z [principal+curator] F034 accepted — mojibake fix idempotente; reparo no backend sem mutar dado fonte
 2026-05-16T23:15:00Z [principal+curator] F035 deferred P3 — requer mutacao de banco ou override env (vetado); aguarda QA manual com tenant de teste
+2026-05-16T23:30:00Z [archaeologist] feature-added: F036 -> atlas/concepts/legacy-contracts/model-valor-genericcalendar.md (renderer genericcalendar; wrapper fino sobre DateComponents/Calendar; renderer proprio com moment+pt-br, 4 views hardcoded, mutex global, dead props views/messages/eventProp/checkFilterToFocusCalendar/onClick/onDoubleClick, eventCounterProp hardcoded='eventStatus', acoplamento vazado tempoDescarga; C1..C12)
