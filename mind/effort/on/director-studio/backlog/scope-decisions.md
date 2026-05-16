@@ -2,12 +2,32 @@
 title: "Director.Studio — Scope decisions log"
 tags: [effort, director-studio, scope, curator]
 created: 2026-05-15
-updated: 2026-05-15
+updated: 2026-05-16
 ---
 
 # Scope decisions — Director.Studio
 
 Append-only. Cada decisão de escopo do curator (aceitar/recusar/dividir/adiar) entra aqui com data, motivo e impacto no manifest.
+
+## 2026-05-16
+
+### F003 → F067/F068/F069 — divisão forward-only por gap retroativo
+
+**Decisão**: dividir o escopo restante de F003 em três features dedicadas (F067 ldap-bridge, F068 temp-password, F069 fornecedor-aws-coverage). F003 mantém `Accepted=✓ 2026-05-15` (não revogo retroativamente — política forward-only).
+
+**Motivo**: auditoria sob os novos guardrails (`.claude/agents/curator.md` critério C9 — toda feature aceita precisa ter caminho real exercitado; `.claude/agents/archaeologist.md` modo auditoria) revelou que F003 foi aceita com 2 dos 5 caminhos como stub `501 not-implemented` (`workspace/director-studio/apps/api/src/routes/auth.ts:377-399`), e o terceiro (`fornecedor-aws`) implementado parcialmente mas nunca exercitado com credencial real. Sob a regra atual, esses 3 caminhos não contariam como cobertos.
+
+**Regra estabelecida**: *stub que devolve `501 not-implemented` não conta como caminho implementado*. Aceitação requer (a) contrato real, (b) implementação que executa o caminho legado de ponta a ponta, (c) ui-tester com caso real.
+
+**Por que não revogar F003**: revogar aceite quebraria a confiança no histórico do manifest e exigiria política de retroatividade que ainda não temos. Forward-only é mais barato e tão completo quanto: as 3 features novas cobrem o gap antes do cutover (cutover bloqueia até 100% accepted).
+
+**Impacto no manifest**: F003 inalterado. Adicionadas:
+
+- **F067** auth — LDAP bridge (P0). Source: `Processa.Sdk.Auth/LDAPAuthMiddleware.cs` + `Cryptography.cs`. Contract=TBD (archaeologist).
+- **F068** auth — Temp password (P0). Source: `Processa.Sdk.Auth/TokenUtils.cs`. Contract=TBD.
+- **F069** auth — Cobertura completa fornecedor-aws (P1). Source: `AbstractBearerAuth.cs` + `sql/portal-aws/`. Contract=TBD.
+
+P0 para LDAP e temp-password (usuários do legado tipo `processa\guga` dependem); P1 para fornecedor-aws (já parcialmente entregue; bloqueia apenas onboarding de fornecedor, não cutover interno).
 
 ## 2026-05-15
 
