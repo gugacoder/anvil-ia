@@ -52,3 +52,45 @@
 - `prefers-reduced-motion` (não exigido pelo enunciado).
 - `toast.promise` (smoke tem botão; pulado após falhas críticas).
 - Duration `Infinity` + closeButton automático (smoke tem botão; pulado).
+
+## Retry — 2026-05-16 (após commit b93df14)
+
+**Resultado**: **fail** (parcial — 2 dos 4 fixes funcionaram; 2 continuam quebrados)
+
+Re-exercício dos 4 casos que falharam + regressão dos 4 que passavam.
+
+| # | Cenário | Status anterior | Esperado | Observado nesta rodada | Resultado |
+|---|---|---|---|---|---|
+| T1.b | Duração por severidade | fail | success some em ~4000ms | Toast `success` permanece `data-visible=true data-removed=false` aos **4286ms reais** com `document.hasFocus()=true` (tab focada via click sintético em área vazia da página). Sem swipe (`data-swiping=false`). Em outra rodada, permaneceu visível por >19s. setTimeout nativo da página dispara em ~4215ms — não é background-throttle. Timer do sonner não está armando OU duração ainda está em valor altíssimo/Infinity. | **falha** |
+| T3 | Action button fecha toast | fail | click no botão action fecha toast | Click em "Reenviar" → toast marca `data-removed=true` em ~200ms; some do DOM em ~1500ms (`count=0`). Comportamento correto. | **pass** |
+| T4 | `dismiss()` global fecha todos | fail | sem argumento, fecha todos os toasts | Disparado success, aguardado 4s, chamado `dismiss() todos`. Aos 5296ms (1s após o click), success continua `data-visible=true data-removed=false`. Toast remanescente de testes anteriores também não fechou após dismiss(). | **falha** |
+| T8.b | A11y `role` + `aria-live` | fail | success/info → `role=status`, `aria-live=polite`; warning/error → `role=alert`, `aria-live=assertive` | Varredura dos 4 toasts simultâneos: success/info → `role=status`, `aria-live=polite`; warning/error → `role=alert`, `aria-live=assertive`. Todos com `aria-atomic=true`. Casa com o spec. | **pass** |
+
+### Regressão dos passes anteriores
+
+| # | Cenário | Observado | Resultado |
+|---|---|---|---|
+| T1.a | Posição desktop + ícone Phosphor | `data-y-position=top data-x-position=right`. Todos os 4 toasts com `<svg>` (size 17–20px) e classes `bg-x-success/10`, `bg-x-info/10`, `bg-x-warning/10`, `bg-x-error/10` (nota: variant error agora usa `bg-x-error/10` — antes era `bg-x-destructive/10`; ambos são aceitáveis pelo spec via alias). | **pass** |
+| T2 | Stack máx 3 visíveis | 5 toasts disparados; total=5 no DOM; 3 com `data-visible=true` (1 front=true + 2 front=false); 2 com `data-visible=false`. | **pass** |
+| T5 | Description abaixo do title | Title "Exportacao iniciada" + description "Voce sera notificado..."; `descRect.y > titleRect.y` confirmado. | **pass** |
+| T7 | Mobile top-center full-width | Viewport efetivo 500px (target 414): `top/center`, x=16, right=16 (margens simétricas), largura=468. | **pass** |
+
+### Falhas remanescentes
+
+- **F020.T1.b — duração ainda ignorada**. Confirmação rigorosa com `document.hasFocus()=true` e setTimeout nativo funcionando (dispara em 4215ms). Snapshots em 100/2000/4200/5500ms reais mostram `data-visible=true data-removed=false` durante todo o intervalo para um toast `success` (deveria sumir em 4000ms). Sintoma é o mesmo de antes — o fix não tocou no caminho do timer. Hipótese: `duration` continua não chegando ao sonner OU está sendo passado como `Infinity`/valor alto fixo no `<Toaster duration={...} />` root.
+- **F020.T4 — `dismiss()` global ainda no-op**. Após chamar o botão "dismiss() todos", o toast success permanece `data-visible=true data-removed=false` 1s depois. Hipótese: o handler do botão no smoke continua não chamando `toast.dismiss()` da sonner sem argumento OU o wrapper `useToast().dismiss()` está chamando algo diferente. Vale conferir se `T3` (action que fecha o toast) usa caminho diferente do dismiss programático — provavelmente o action delega ao sonner enquanto o dismiss não.
+
+### Observação cruzada T1.b ↔ T4
+
+Como ambos dependem do mesmo subsistema (ciclo de vida de fechamento do toast no sonner), é plausível que a causa raiz seja única: **wrapper `<Toaster />` ou `useToast()` está stripando/ignorando opções que o sonner usa para fechamento** (duration default e dismiss programático). T3 funcionar reforça isso: o fechamento via action é orquestrado internamente pelo sonner (não passa pelo wrapper), enquanto duration e dismiss precisam ser propagados pelo nosso código.
+
+### Console
+
+- Apenas mensagens `[vite] connecting/connected`. Sem errors/warnings de app.
+
+### Próxima ação
+
+- **fail** → smith retoma. Foco em duas frentes acopladas:
+  1. Investigar como `duration` é propagada do `useToast()` para o sonner — provavelmente está sendo dropada no spread de options.
+  2. Investigar o `dismiss()` sem argumento no hook — deve repassar `undefined` (não substituir por outro valor) para `sonner.toast.dismiss(undefined)`, que fecha todos.
+  3. T3 e T8.b agora passam — não tocar nesses caminhos.
