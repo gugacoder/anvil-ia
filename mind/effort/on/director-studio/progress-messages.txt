@@ -264,3 +264,4 @@
 2026-05-16T13:00:00Z [archaeologist] audit-veto: F018 re-auditoria pos-fix d771da1 — D4/D5/D9/D11/D13/D14 passam; D6 ainda descoberto (RangePreset sem yesterday-to-today, legado emite [hoje-1d, hoje]); D12/D17 aceitos como nota -> audits/F018-20260516T130000Z.md
 [smith] status=ready-for-test: F018 fix D6 — preset 'last-2-days' adicionado
 audit-pass: F018 -> audits/F018-20260516T140000Z.md (D6 coberto via preset last-2-days @ eb492ac; sem regressao)
+[ui-tester] F018 pass
