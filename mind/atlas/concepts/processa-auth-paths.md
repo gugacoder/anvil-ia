@@ -5,7 +5,7 @@ tags: [auth, processa, sdk, ldap, jwt, ecosistema]
 sources:
   - "calendar/notes/2026-05-15.md"
 created: 2026-05-15
-updated: 2026-05-15
+updated: 2026-05-16
 ---
 
 # Caminhos de autenticação Processa
@@ -104,9 +104,17 @@ Authorization recebido
      │           AND Status=1
      │
      └─ resto              → AuthenticateLocal via Settings.AuthQuery
-          └─► SELECT DFid_usuario AS Id, DFnome_usuario AS Nome, DFcod_empresa AS CodEmpresa, ...
-                FROM TBusuario JOIN TBempresa
-               WHERE DFnome_usuario=@nome AND DFativo_inativo=1 AND dbo.VALIDAR_CRIPT(@senha, DFsenha)=1
+          └─► SELECT DFid_usuario              AS Id
+                   , DFnome_usuario            AS Nome
+                   , TBusuario.DFcod_empresa   AS CodEmpresa
+                   , TBempresa.DFnome_fantasia AS NomeEmpresa
+                FROM TBusuario WITH(NOLOCK)
+               INNER JOIN TBempresa WITH(NOLOCK) ON TBusuario.DFcod_empresa = TBempresa.DFcod_empresa
+               WHERE DFnome_usuario = @nome
+                 AND DFativo_inativo = 1
+                 AND (SELECT dbo.VALIDAR_CRIPT(@senha, DFsenha)) = 1
+          (definição em `sources/engenharia--fabrica--dotnet--processa.sdk/Fontes/Processa.Sdk.Api/Settings.cs:42-51` —
+           coluna canônica é `TBempresa.DFnome_fantasia`, exposta sob alias `NomeEmpresa`; não há `DFnome_empresa` em `dbo.TBempresa`)
 ```
 
 Há uma sutileza importante entre `AuthMiddleware` e `LDAPAuthMiddleware`: o primeiro (usado em Portal, Director.Web) aceita todos os caminhos; o segundo (usado em AppBuilder, ADM) só aceita LDAP + senha temporária — usuário interno via DB é rejeitado. A escolha de qual middleware um app usa é decidida no `Program.cs` daquele app, registrando `AddTransient<AuthMiddleware>()` ou `AddTransient<LDAPAuthMiddleware>()`.
