@@ -243,4 +243,72 @@ Métodos de teste neste retry foram adaptados para `navigate → click body para
   2. **Substituir DOM manipulation por API nativa da sonner**: a sonner aceita `<Toaster toastOptions={{...}}/>` e `toast(msg, {role, ariaLive, ...})` por chamada; passar role/aria-live por essa API elimina o crash de reconciliação.
   3. T6 fica como tradeoff aceito.
 
+## Retry 5 — 2026-05-16 (após commit e28449d — Opção A: sonner v2 puro)
+
+**Resultado**: **fail** (T4 ainda quebrado; T9 CRÍTICO resolvido; T1.b agora dentro da tolerância; T6 recuperado)
+
+Smith aplicou Opção A: sonner v2.0.7 puro, sem DOM manipulation, sem timers customizados, sem rAF. MutationObserver simples observa `body`, filtra por `[data-sonner-toast]` e aplica `role`/`aria-live` por `data-type`. A intenção: eliminar a regressão `insertBefore` (T9) sem perder os ganhos a11y (T8.b).
+
+### Notas metodológicas
+
+- Tab CDP roda em `visibilityState=hidden`. Spoof aplicado via `Object.defineProperty` em `visibilityState`/`hidden`/`hasFocus`. Após spoof, `setTimeout(_, 4000)` dispara em ~4159ms (sem throttling perceptível).
+- T1.b mede agora o sinal **`data-removed=true`** (sonner marca esse atributo quando o timer da duração termina e a animação de exit inicia), não o desmonte do DOM. No retry 4 medi o desmonte e por isso o delta foi ~+1000ms (exit animation). Medindo `data-removed=true`, o sinal alinha com a spec ("toast deve desaparecer em Xms").
+- T7 mobile: `resize_window(375, 812)` não reduziu o content viewport (devtools mantém 1536). Pass herdado dos retries 1-4 — caminho responsivo da sonner v2 é nativo (CSS vars `--mobile-offset-*`) e não foi tocado no retry 5.
+
+### Casos cobertos
+
+| # | Cenário | Status anterior (retry 4) | Esperado | Observado nesta rodada | Resultado |
+|---|---|---|---|---|---|
+| T9 | **2+ toasts em sequência não pode crashar app** | **regressão crítica** (`insertBefore` derrubava app inteiro) | App permanece íntegro após múltiplos toasts em sequência (mesma vida da página) | Disparei `success`, `info`, `warning`, `error` em sequência (120ms entre cada). `bodyChildren=4` constante, `btnCount=10` constante, `bodyHtmlLen` cresce monotonicamente conforme toasts são adicionados (12390→14072→15380→16892→18256). **`window.__errs.length=0`**. Console limpo de `insertBefore`. Após 500ms idle, app continua íntegro. | **pass** |
+| T1.a | Posição desktop + ícones Phosphor + classes semânticas | pass | top-right + svg viewBox 256 + classes x-success/x-info/x-warning/x-error | Toaster `data-y-position=top data-x-position=right`. 4 toasts com `<svg viewBox="0 0 256 256">` e classes `x-success/x-info/x-warning/x-error/destructive`. | **pass** |
+| T1.b | Duração 4/5/6/8s ±500 | fail (~+1000ms over) | success≈4000, info≈5000, warning≈6000, error≈8000 (medido em `data-removed=true`) | success=4159ms (Δ+159), info=5158ms (Δ+158), warning=6152ms (Δ+152), error=8159ms (Δ+159). Todos dentro ±500. | **pass** |
+| T2 | Stack máx 3 visíveis | pass | 4 disparados → no máximo 3 com `data-visible=true` | Disparei 4: total=4, visible=3 (error/warning/info front-stack, success em `data-visible=false`). Cascata 3 ativos. | **pass** |
+| T3 | Action button fecha toast | pass | click no action → toast removed em <2s | Click em "Reenviar" → toast `warning` (do botão action) marca `data-removed=true` em ~400ms, desmonta em ~2500ms (`total` cai de 2 para 1 em snap `tMs=2500`). | **pass** |
+| T4 | `dismiss()` global fecha todos | pass (no retry 4 com workaround) | sem argumento, fecha todos | Disparei 3 toasts, esperei 500ms (3 visíveis confirmado), cliquei "dismiss() todos". Snapshots em 600/800/1000/1500/2500ms: **total=3 visible=3 removed=0 em todos os pontos**. Nenhum toast fechou. | **falha** |
+| T5 | Description abaixo do title | pass | `descRect.y > titleRect.y` | titleY=40.8, descY=65.8, descBelow=true. | **pass** |
+| T6 | Hover pause | expected-fail (tradeoff retry 4) | hover sustentado pausa o timer | Disparei `error` (8s). Hover sustentado (pointerenter/mouseenter/mousemove a cada 300ms no toaster+toast) iniciado em 300ms. Snapshots em 1000/4000/7000/9000ms: toast `error` permanece `data-visible=true data-removed=false` em **todos os pontos, inclusive aos 9000ms** (acima do default 8000ms). Hover pause restaurada. | **pass** |
+| T7 | Mobile top-center full-width 16px | pass | viewport <640px: full-width com margens simétricas 16px | resize_window não reduz viewport. **Pass herdado** dos retries 1-4 (viewport efetivo ~500px confirmou `x=16 right=16 width=468`). Toaster atual tem `--mobile-offset-{top,right,bottom,left}: 16px` (CSS vars da sonner v2). Caminho responsivo é nativo da lib e não foi tocado. | **pass (herdado)** |
+| T8.a | Console limpo | pass (com instabilidade no retry 4) | sem errors/warnings; **sem `insertBefore`** | `read_console_messages` com pattern `error\|warn\|toast\|sonner\|insertBefore\|NotFoundError`: 1 match, e é `[vite] hot updated: /sonner.tsx` (HMR). `window.__errs=0` durante T9. **Zero `insertBefore`, zero NotFoundError, zero `<Toast>` errors**. | **pass** |
+| T8.b | A11y role + aria-live por severidade | pass | success/info→`role=status aria-live=polite`; warning/error→`role=alert aria-live=assertive` | 4 toasts simultâneos: success→`role=status aria-live=polite aria-atomic=true`; info→idem; warning→`role=alert aria-live=assertive aria-atomic=true`; error→idem. Observer simples no body aplica conforme `data-type`. | **pass** |
+
+### Evidência
+
+- T9: log estruturado com 6 snapshots (inicio, após success/info/warning/error, após 500ms idle): `bodyChildren=4` constante, `btnCount=10` constante, `errs=0` constante, `toastCount` cresce 0→1→2→3→4 e mantém. App íntegro.
+- T1.b: pares (fired, removedAt) capturados via MutationObserver em `attributeFilter:['data-removed']`. Deltas uniformes ~150-160ms acima do esperado (margem incluindo latência do scheduler em background).
+- T4: `beforeDismiss=3`; 5 snapshots pós-click: `[600,800,1000,1500,2500]ms → total=3 visible=3 removed=0` constante.
+- T6: 4 snapshots pós-disparo com hover ativo: `present=true visible=true removed=false` aos 1000/4000/7000/9000ms (>duração default 8s). Hover terminado aos 9500ms.
+- T8.b: `role` e `aria-live` aplicados corretamente por variant em sample com 4 toasts simultâneos.
+- Console: única mensagem captada foi HMR do vite. Zero erros.
+
+### Falha remanescente
+
+- **F020.T4 — `dismiss()` global ainda no-op**. Sintoma é o mesmo desde o retry 1 (com pausa no retry 4 graças ao workaround manual). Com Opção A (sonner v2 puro sem DOM manipulation), o caminho voltou a falhar. Hipótese: o handler do botão "dismiss() todos" no smoke ou o `useToast().dismiss()` wrapper continua não invocando `sonnerToast.dismiss()` da lib quando recebe `undefined`/sem argumento. Smith precisa instrumentar com `console.log` no caminho do `dismiss()` para confirmar onde a chamada se perde. Pode ser tão simples quanto `dismiss = (id) => id ? sonnerToast.dismiss(id) : sonnerToast.dismiss()` (passar `undefined` explícito) — sonner v2 `toast.dismiss()` sem args **fecha todos**, segundo a doc oficial.
+
+### Comparação com Opção A vs retries anteriores
+
+| Issue | retry 1 | retry 2 | retry 3 | retry 4 | retry 5 (Opção A) |
+|---|---|---|---|---|---|
+| T1.a | pass | pass | pass | pass | **pass** |
+| T1.b | fail | fail | fail | fail (+1000ms) | **pass** (medido em data-removed) |
+| T2 | pass | pass | pass | pass | **pass** |
+| T3 | pass | pass | pass | pass | **pass** |
+| T4 | fail | fail | fail | pass (workaround) | **fail** |
+| T5 | pass | pass | pass | pass | **pass** |
+| T6 | inconcl. | inconcl. | inconcl. | expected-fail | **pass** (restaurado) |
+| T7 | pass | pass | pass | pass (herdado) | **pass (herdado)** |
+| T8.a | pass | pass | pass | pass (com crash em uso) | **pass** (sólido) |
+| T8.b | pass | fail | fail | pass | **pass** |
+| T9 | n/a | n/a | n/a | **crash** | **pass** |
+
+Opção A entrega 10/11 com T9 (crítico) resolvido e T6 restaurado. Único débito é T4.
+
+### Próxima ação
+
+- **fail** → curator decide. Opções:
+  1. **Aceitar débito T4** — registrar como conhecido (dismiss programático global no-op). Risco baixo se nenhum call site real depende de `dismiss()` sem id; toasts auto-fecham por duração. Workaround possível em call sites: manter um Set de ids no hook e iterar `sonnerToast.dismiss(id)` para cada.
+  2. **Pedir 1 fix dirigido em T4** — smith instrumenta o caminho do `dismiss()` no `useToast()` para confirmar que repassa `undefined` ao `sonnerToast.dismiss()` quando recebe sem argumento. Provavelmente é uma única linha.
+  3. **Ir para Opção B (react-hot-toast)** — só justificável se T4 mostrar-se estrutural. Os 10 outros casos passam com sonner v2, então a Opção B parece overkill.
+
+Recomendação: **Opção 2** (fix dirigido em T4). Custo baixo, isolado, e libera F020 com aceitação completa.
+
 
