@@ -139,3 +139,44 @@ O MutationObserver batched via rAF (mudança 3 do fix2) provavelmente é o culpa
   2. **Instrumentar `dismiss()`** com `console.log` antes/depois da chamada ao sonner, disparar o smoke, observar console. Se nem chega no `sonner.toast.dismiss()`, o problema é no wiring do hook; se chega mas não fecha, é problema do sonner com a versão atual.
   3. **Duração**: passar `duration` no nível do `toast()` call (no hook ou call sites), não confiar no default do `<Toaster>`. Sonner v1.x respeita `duration` por toast > default do Toaster.
 
+## Retry 3 — 2026-05-16 (após commit 3de9343 — sonner downgrade 1.7.x + rAF revertido)
+
+**Resultado**: **fail** (T1.b e T4 continuam quebrados; T8.b continua quebrado mesmo com rAF revertido)
+
+Smith aplicou: downgrade da sonner para 1.7.x e reverteu o MutationObserver rAF para versão síncrona (intenção de recuperar T8.b).
+
+| # | Cenário | Status anterior (fix2) | Esperado | Observado nesta rodada | Resultado |
+|---|---|---|---|---|---|
+| T1.b | Duração por severidade | fail | success some em ~4000ms (±500) | Tab focada confirmada (`document.hasFocus()=true` durante todo o teste). Disparei `success` isolado e fiz poll a 250ms até 6500ms: toast permanece `data-visible=true data-removed=false` em todas as amostras (753ms, 4749ms, 6745ms). Continuei observando até ~10s pós-disparo: toast ainda visível. Nenhuma severidade fecha por timer. | **falha** |
+| T4 | `dismiss()` global fecha todos | fail | sem argumento, fecha todos | Antes: 1 toast visível. Click em "dismiss() todos". Samples em 150/400/900/1800/2800ms: **1 visível em todos os samples, 0 marcados removed**. Nenhum toast fechou. Comportamento idêntico ao fix2. | **falha** |
+| T8.b | A11y `role` + `aria-live` | fail (regressão fix2) | success/info → `role=status aria-live=polite`; warning/error → `role=alert aria-live=assertive` | Disparei as 4 severidades. Sample imediato (500ms) e sample tardio (2s): **todos os toasts com `role=null aria-live=null aria-atomic=null`**. Varredura do subtree `[data-sonner-toaster]`: `rolesInRoot=0`, `livesInRoot=0`. Reverter o rAF não recuperou os atributos — o caminho síncrono também não está aplicando. | **falha** |
+
+### Regressão dos passes anteriores
+
+| # | Cenário | Observado | Resultado |
+|---|---|---|---|
+| T1.a | Posição + ícone Phosphor | `data-y-position=top data-x-position=right`. 3 toasts visíveis (error/warning/info) com `<svg>` viewBox `0 0 256 256` e classes `bg-x-error/10 border-x-error/20`, `bg-x-warning/10 border-x-warning/20`, `bg-x-info/10 border-x-info/20`. | **pass** |
+| T2 | Stack máx 3 visíveis | "disparar 5 (stack)" → total=6 no DOM, visible=3 (≤3 OK). | **pass** |
+| T3 | Action button fecha toast | "com action (Reenviar)" disparado, contagem=12, click em "Reenviar" → 2s depois count=11 e `toast.isConnected && data-visible=true` falso. Action fechou seu próprio toast. | **pass** |
+| T5 | Description abaixo do title | Title "Exportacao iniciada" titleY=40.8; description "Voce sera notificado..." descY=65.8; `descBelow=true`. | **pass** |
+| T7 | Mobile full-width 16px | viewport efetivo 500px (target 414): `yPos=top xPos=right` (config root mantém posição desktop), mas visualmente `x=16 right=16 width=468` — full-width com margens simétricas, comportamento responsivo OK. | **pass** |
+| T8.a | Console limpo | Sem mensagens de erro/warning relacionadas a sonner/toast no listener iniciado durante o teste. | **pass** |
+
+### Conclusão retry 3
+
+- **3 issues criticas, 0 resolvidas**. Downgrade da sonner e revert do rAF não tocaram em nenhuma das três falhas residuais.
+- T1.b (duração): hipótese forte é que o wrapper `useToast()` continua dropando `duration` ao construir as options enviadas ao `sonnerToast(...)`. O downgrade de versão da lib não altera nada se o wrapper já não passa o campo.
+- T4 (dismiss global): mesmo sintoma desde o fix1. Hipótese: o botão "dismiss() todos" no smoke chama um wrapper que não invoca `sonnerToast.dismiss()` quando recebe `undefined`, ou intercepta o `undefined` antes de chegar à lib.
+- T8.b (a11y): a regressão do fix2 NÃO foi recuperada pelo revert do rAF. Isso indica que o problema não era do rAF em si — o caminho síncrono atual também não aplica role/aria-live. Algo no path de mutation está silenciosamente quebrado (observer não montado, callback não disparando, ou aplicando em elemento errado).
+
+### Recomendação para smith (último recurso sinalizado)
+
+Conforme combinado no briefing: **se T1.b/T4 ainda falharem, forçar via `setTimeout(toast.dismiss, n)` explícito no call site**. Isso passa por cima do mecanismo interno da sonner — válido como workaround temporário, mas exigirá:
+- Mapear cada severidade → `setTimeout(() => sonnerToast.dismiss(id), 4000/5000/6000/8000)` logo após o `sonnerToast(...)` retornar o id.
+- Para `dismiss()` global: iterar manualmente sobre os toasts ativos (manter um Set de ids no hook) e chamar `sonnerToast.dismiss(id)` para cada, em vez de confiar em `sonnerToast.dismiss()` sem args.
+- Para T8.b: investigar separadamente — não é o mesmo subsistema. Verificar (a) se o `MutationObserver` foi de fato registrado e (b) se a callback realmente é invocada (instrumentar com `console.log` no callback).
+
+### Próxima ação
+
+- **fail** → smith retoma com workaround explícito de `setTimeout(toast.dismiss, n)` para T1.b/T4 e debug independente do path a11y para T8.b.
+
