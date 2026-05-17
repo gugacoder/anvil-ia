@@ -347,3 +347,4 @@ DoD por item da pauta:
 PROIBIDO commit. Entregando para auditoria archaeologist (asserção F108 do contrato) e validacao ui-tester (/smoke/f108 cenarios 1+2+3 in vivo quando Vite desbloquear).
 2026-05-17T22:59:21Z [orchestrator] F108 todo → audit-pending
 2026-05-17T23:01:42Z [archaeologist] audit-pass-with-note: F108 — discriminante typeof model robusta, ACL key precedência respeita F014, recursão sub-model OK; 5 notas formato contrato (faltam citações de impl, frontmatter updated, declarar model chave reservada, slug instável aviso, sugestão arquitetural mover bloco para ui-system/)
+2026-05-17T23:02:14Z [orchestrator] F108 ready-for-test → deferred (esbuild)
