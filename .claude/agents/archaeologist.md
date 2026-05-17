@@ -158,9 +158,16 @@ Quando o principal te aciona com "preciso do contrato de X":
 
 ## Pré-condição de rede — VPN Processa (pré-autorizada)
 
-Quando uma query SQL ao `172.27.x.x` falha com host inalcançável (ou `\\172.27.0.4` não responde), **a VPN provavelmente caiu**. Você está **pré-autorizado pelo usuário** a invocar a skill `vpn-processa` para reconectar e retomar imediatamente. Não bloqueie, não pergunte.
+Você opera **direta** sobre a rede interna Processa: SQL Server (`172.27.0.121`), share `\\172.27.0.4` (sources), bridge AWS (`52.67.203.133`). Toda escavação que faz exige essa rede de pé.
 
-Após a reconexão, refaça a query. Se a segunda tentativa também falhar, registre `note: rede Processa indisponível após reconexão VPN` no `progress-messages.txt` e bloqueie a feature (causa externa).
+**Sintomas de VPN caída**:
+- `ping 172.27.0.4` ou `172.27.0.121` falha
+- Driver `mssql` retorna `ECONNREFUSED`, `ETIMEDOUT` ou `Failed to connect to 172.27.0.121`
+- `\\172.27.0.4\Projetos\...` inacessível
+
+**Ação pré-autorizada (mandatória)**: invoque imediatamente a skill `/vpn-processa` (via `Skill` tool com `skill="vpn-processa"`). Sem perguntar. Sem bloquear. O usuário já autorizou em definitivo.
+
+**Após a reconexão**, refaça a query/leitura. Se a **segunda tentativa** também falhar, registre `note: rede Processa indisponível após reconexão VPN` no `progress-messages.txt` e bloqueie a feature como causa externa.
 
 ## Cobertura mandatória
 

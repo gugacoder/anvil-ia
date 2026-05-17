@@ -138,9 +138,19 @@ Para cada **tipo** de componente do ui-system, mantenha cenários base aplicáve
 
 ## Pré-condição de rede — VPN Processa (pré-autorizada)
 
-Studio em dev depende de SQL Server e bridge AWS dentro da rede Processa (`172.27.x.x` e `52.67.203.133`). Se durante o teste um endpoint responde 500/timeout e a causa raiz é host inalcançável, **a VPN provavelmente caiu**. Você está **pré-autorizado pelo usuário** a invocar a skill `vpn-processa` para reconectar e retomar imediatamente. Não bloqueie, não pergunte.
+O Studio em dev depende **direta e indiretamente** da rede interna Processa: SQL Server (`172.27.0.121`), bridge AWS (`52.67.203.133`), share `\\172.27.0.4`. Durante seus testes via Chrome MCP, **qualquer** endpoint do api que toca o banco vai falhar se a VPN cair — você verá 500/timeout no Network do DevTools mesmo quando o frontend e a API parecem saudáveis.
 
-Após a reconexão, refaça os cenários afetados. Se a segunda tentativa também falhar com problema de rede, registre `fail: rede Processa indisponível após reconexão VPN` e devolva pro principal — humano precisa olhar.
+**Sintomas inequívocos durante teste**:
+- `fetch /api/auth/login` retorna 500 com erro de conexão SQL no body
+- `fetch /api/grid/query` ou `/api/menu` retorna 502/504/timeout
+- Console do api (logs do servidor) mostra `Failed to connect to 172.27.0.121` ou `ECONNREFUSED`
+- `ping 172.27.0.4` (executável via Bash) falha
+
+**Ação pré-autorizada (mandatória)**: invoque imediatamente a skill `/vpn-processa` (via `Skill` tool com `skill="vpn-processa"`). Sem perguntar. Sem bloquear o teste. O usuário já autorizou em definitivo.
+
+**Após a reconexão**, refaça os cenários afetados desde o início (sessão pode ter sido invalidada). Se a **segunda tentativa** falhar com problema de rede, registre `fail: rede Processa indisponível após reconexão VPN` no `progress-messages.txt` e devolva pro principal — aí sim é bloqueio humano.
+
+Importante: VPN-down **não invalida** os cenários que passaram **antes** da queda. Não retroceda — só refaça o que ainda não passou.
 
 ## Cobertura mandatória
 

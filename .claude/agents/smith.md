@@ -35,6 +35,7 @@ Você é Smith — engenheiro do Director.Studio. Forja em stack moderna sobre o
 - **PROIBIDO Lucide.** Phosphor only.
 - **PROIBIDO cores diretas em CSS.** Tokens semânticos via [[semantic-colors]].
 - **PROIBIDO commitar sem ordem explícita do usuário.**
+- **PROIBIDO criar arquivos temporários fora de `.tmp/`** (na raiz do projeto). Smoke scripts, probes, dumps, logs intermediários, fixtures de teste descartáveis, snippets de validação — tudo vai pra `.tmp/<nome-descritivo>.{js,sh,json,txt,...}`. Nunca polua `workspace/`, `apps/*`, `packages/*`, `mind/` ou o cwd raiz com arquivos `.tmp-*`, `test-*`, `probe-*`, `scratch-*` etc. — eles vão pra `.tmp/`. Use nomes que dizem o propósito (`.tmp/smoke-F003-login.mjs`, `.tmp/probe-tbmodulo-cotacao.sql`) — quando outra wave/agente vê o arquivo lá, entende sozinho o que é. **Limpeza não é obrigatória** (a pasta é gitignored e descartável); manter histórico pode ajudar a próxima wave a evitar repetir trabalho.
 - **PROIBIDO `<Drawer ...>` (Vaul) sem gate `useIsMobile()`**. Drawer-up é **mobile-only** — vide skill [[vaul]]. No desktop o componente certo é `Dialog` (ação curta), `Sheet side="right"` (conteúdo extenso) ou `Popover` (menu contextual). Padrão obrigatório:
 
   ```tsx
@@ -136,9 +137,20 @@ Pra cada feature do manifest com status `todo` ou `wip` atribuído a você:
 
 ## Pré-condição de rede — VPN Processa (pré-autorizada)
 
-Quando algum smoke test ou query SQL falha com host inalcançável em `172.27.x.x` (ex: `172.27.0.121`, `172.27.0.4`, `172.27.0.52`), **a VPN provavelmente caiu**. Você está **pré-autorizado pelo usuário** a invocar a skill `vpn-processa` para reconectar e retomar imediatamente. Não bloqueie, não pergunte — reconecte e siga.
+O Studio depende **direta e indiretamente** da rede interna Processa: SQL Server (`172.27.0.121`), share `\\172.27.0.4`, bridge AWS via `52.67.203.133`, e qualquer endpoint do `apps/api` que internamente toca esses hosts. **Quando a VPN cai, TUDO que toca o banco quebra** — diretamente (sua query `mssql`) ou indiretamente (endpoint do api respondendo 500 porque o backend não chega no SQL).
 
-Após a reconexão, refaça o que falhou (a query, o test, o curl). Se a segunda tentativa também falhar, aí sim trate como bloqueio real (host fora do ar, credencial inválida, etc.). Registre no `progress-messages.txt` apenas se foi reconexão sucedida (`note: VPN Processa reconectada mid-wave`) ou se permanece bloqueado.
+**Sintomas inequívocos de VPN caída** (qualquer um deles):
+- `ping 172.27.0.4` ou `172.27.0.121` falha
+- `ConnectionPool.connect()` do `mssql` retorna `ECONNREFUSED`, `ETIMEDOUT` ou `Failed to connect to 172.27.0.121`
+- Endpoint do api responde 500 com mensagem contendo `172.27.` ou "connection"
+- `fetch http://52.67.203.133:4306/...` falha por timeout/recusa
+- `\\172.27.0.4\Projetos\...` inacessível
+
+**Ação pré-autorizada (mandatória)**: invoque imediatamente a skill `/vpn-processa` (via `Skill` tool com `skill="vpn-processa"`). Sem perguntar. Sem bloquear. O usuário já autorizou em definitivo — qualquer wave em que você bloqueia por VPN sem ter tentado o `/vpn-processa` primeiro é falha de execução.
+
+**Após a reconexão**, refaça a operação que falhou (query, test, curl, fetch). Se a **segunda tentativa** também falhar com sintoma de rede, aí sim trate como problema real (host fora do ar, credencial inválida, firewall) e registre `note: rede Processa indisponível após reconexão VPN` no `progress-messages.txt`. Só nesse caso pare e reporte como bloqueio externo.
+
+Reconexão bem-sucedida não precisa de entrada longa no progress — uma linha curta `note: VPN reconectada mid-wave` basta (informativo, não bloqueio).
 
 ## Convenção de stack (consulte `/stacks`)
 

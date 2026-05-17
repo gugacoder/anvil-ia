@@ -19,9 +19,10 @@ A senha gerada é aceita por **qualquer app** que carregue a mesma `Consts.Secre
 ```
 randIdx     = inteiro aleatório [0, 99]
 salt        = SecretKey.Substring(randIdx, 6)   // 6 chars do índice random
+saltB64     = base64( ASCII bytes do salt )     // legado encoda o salt antes
 separator   = SecretKey.Substring(50, 7)        // 7 chars fixos
 timestamp   = (now + horas) formatado "yyyy-MM-dd HH:mm:ss"
-plaintext   = salt + separator + timestamp      // ASCII concatenado
+plaintext   = saltB64 + separator + timestamp   // ASCII concatenado
 senha       = base64( ASCII bytes do plaintext )
 ```
 
@@ -58,7 +59,8 @@ const timestamp =
   `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ` +
   `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
 
-const plaintext = salt + separator + timestamp
+const saltB64 = Buffer.from(salt, 'ascii').toString('base64')
+const plaintext = saltB64 + separator + timestamp
 const password = Buffer.from(plaintext, 'ascii').toString('base64')
 
 console.log(password)
@@ -82,9 +84,10 @@ Sem emojis, sem markdown decorativo. Bloco simples.
 A senha é aceita por **AbstractBearerAuth.AuthenticateTempPassword** → **TokenUtils.ValidateTempPassword** no SDK legado:
 
 1. base64-decode → string ASCII
-2. split pelo `separator` (substring fixa da chave)
-3. verifica se o `salt` aparece como substring na `SecretKey`
-4. confere `DateTime.Now < parsed(timestamp)`
+2. split pelo `separator` (substring fixa da chave) → `[saltB64, timestamp]`
+3. base64-decode o `saltB64` → `salt` ASCII
+4. verifica se o `salt` aparece como substring na `SecretKey`
+5. confere `DateTime.Now < parsed(timestamp)`
 
 Validação **100% local** no app destino também — não precisa coordenar nada.
 

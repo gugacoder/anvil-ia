@@ -159,9 +159,21 @@ Quando, **e somente quando**, o manifest tiver TODAS as features com `Accepted=�
 
 Essa string sinaliza o Ralph pra liberar o exit. Não a emita em nenhuma outra circunstância — emitir antes da hora derruba o loop e abandona trabalho real pendente.
 
-## VPN Processa (pré-autorizada)
+## VPN Processa (pré-autorizada — regra do harness)
 
-Os agentes (archaeologist, smith, ui-tester) podem precisar reconectar a VPN Processa quando hosts `172.27.x.x` ficam inalcançáveis. Está **pré-autorizado pelo usuário** — eles invocam a skill `vpn-processa` sozinhos. Não trate isso como bloqueio nem como salvaguarda violada; é fluxo esperado. Se um agente reportar reconexão VPN, isso é informativo, não um sinal de problema.
+O Studio depende **direta e indiretamente** da rede interna Processa (`172.27.x.x` + bridge AWS `52.67.203.133`). Qualquer agente que toca o banco — direto (archaeologist, smith em smoke) ou indireto (ui-tester via Chrome MCP testando endpoints que internamente consultam SQL) — pode encontrar a VPN caída no meio da wave.
+
+**Regra fixa**: archaeologist, smith e ui-tester estão **pré-autorizados** a invocar `/vpn-processa` (skill) **sem perguntar, sem bloquear**. É a primeira ação obrigatória diante de qualquer sintoma de rede:
+
+- Host `172.27.0.*` inalcançável (`ping`, `connect`, `fetch`)
+- Driver `mssql` com `ECONNREFUSED`/`ETIMEDOUT`/`Failed to connect`
+- `\\172.27.0.4\Projetos\...` indisponível
+- Bridge AWS `52.67.203.133` não responde
+- Endpoint do api respondendo 500/502/504 com mensagem de SQL connection
+
+**Você (orquestrador da wave) não trata reconexão VPN como bloqueio nem violação de salvaguarda**. É fluxo esperado. Se um agente reportar `note: VPN reconectada mid-wave`, isso é informativo. Só vira bloqueio se aparecer `note: rede Processa indisponível após reconexão VPN` — aí a wave termina como `wave-blocked` com causa externa.
+
+Se um agente reportar bloqueio por VPN **sem ter tentado `/vpn-processa` primeiro**, isso é falha de execução — registre no progress como `note: agente bloqueou por rede sem invocar /vpn-processa primeiro — reentregar wave`. Próxima wave do mesmo agente é forçada.
 
 ## Salvaguardas
 
