@@ -133,6 +133,67 @@ Reciprocamente, qualquer um desses contratos pode aparecer **dentro** de uma `pa
 - **Polling em abas escondidas continua rodando no legado** (dashboards com auto-refresh em todas as abas, mesmo invisível). Replicar exato = mesmo custo de rede; otimizar = pausar polling em abas inativas (mudança comportamental).
 - Quando `model.pageTabs` existe **e** outras chaves de dispatch também (`genericform`, `genericgrid`, etc.) coexistem **no mesmo nó raiz**, **o legado escolhe sempre o caminho de abas** (bifurcação em `GenericPages.js:109` é a primeira); as outras chaves do nó raiz são ignoradas. Sub-models válidos vão **dentro** de cada `pageTabs[i]`, não no irmão.
 
+## Asserção F108 — sub-model embedded (Studio-canonical, 2026-05-17)
+
+O Studio estende o shape do tab para permitir um **sub-model nested explícito**, mantendo paridade total com o shape legado (spread). Ambos coexistem no mesmo array.
+
+### Dois shapes de tab suportados (engine despacha indistintamente)
+
+**(a) Studio-canonical (F108 — preferido para models novos):**
+
+```json
+{
+  "key": "f108-form",
+  "label": "Formulário",
+  "model": {
+    "genericPageTitle": "Cadastro de cliente",
+    "genericform": { "config": { "model": [[...]] } }
+  }
+}
+```
+
+**(b) Legacy AppBuilder (paridade §"TabModel" acima):**
+
+```json
+{
+  "functionKey": "f108-form",
+  "genericPageTitle": "Formulário",
+  "genericform": { "config": { "model": [[...]] } }
+}
+```
+
+### Regras de resolução implementadas em `ModelTabsRenderer.resolveTabs`
+
+| Campo | Studio-canonical | Legacy | Precedência |
+|---|---|---|---|
+| ID estável (URL `?tab=`) | `tab.key` | `tab.functionKey` | `key` > `functionKey` > slug(label) > `tab-${i}` |
+| Rótulo da aba | `tab.label` | `tab.genericPageTitle` | `label` > `genericPageTitle` > ID > `Aba ${i+1}` |
+| Sub-model despachado pelo engine | `tab.model` (objeto) | tab inteiro (discriminantes spread) | objeto em `tab.model` ⇒ Studio; ausente ⇒ legacy |
+| ACL filter id | `tab.key` | `tab.functionKey` | `key` > `functionKey` (aba sem id-ACL é silenciosamente filtrada quando `aclTabsAllowed!==undefined`) |
+
+### Discriminante do shape
+
+Detecção mecânica: **`typeof tab.model === "object" && !Array.isArray(tab.model)`** ⇒ shape Studio (sub-model embedded). Qualquer outra forma cai no caminho legacy (tab inteiro vira sub-model).
+
+Quando shape Studio é detectado, **chaves discriminantes irmãs de `tab.model`** (no nível do tab — ex.: `tab.genericform`, `tab.datagrid`) são **ignoradas** — o sub-model autoritativo é `tab.model`. Isso evita ambiguidade.
+
+### Recursão
+
+Como cada `tab.model` reentra no `<ModelEngine/>`, o sub-model pode ele próprio conter `pageTabs[]` — abas-dentro-de-abas funcionam por construção (validado em `/smoke/f108` cenário 3). Paridade com o comportamento já implícito do legado (que também aceita, mas não exemplifica no seed).
+
+### Lazy mount / keepAlive / URL
+
+Idênticos ao F014 — F108 só altera o shape de entrada do tab, não muda o comportamento do tablist (lazy mount na primeira visita, keepAlive em visitas posteriores, deep-link via `?tab={id}` com `id` agora preferindo `key` Studio-canonical sobre `functionKey` legado).
+
+### Migração do dado real
+
+Models legados em `acesso.TBmodel_pagina.DFvalor` continuam funcionando intactos (shape legacy). Novos models gerados pelo AppBuilder ou pelo próprio Studio devem usar shape Studio-canonical (`{key, label, model}`) — facilita diff/edição e separa rótulos da semântica de dispatch.
+
+### Pontos não-cobertos por F108 (continuam como F014)
+
+- ACL fina por aba: campo permanece `functionKey` no shape legacy; no shape Studio, ACL passa a usar `key`. Coexistência: o ACL endpoint do legado entrega `functionKey` strings — quem migrar para `key` deve manter o mapeamento.
+- `tabName` posicional (`tabPage${i}`): irrelevante no Studio (renderer usa `id` derivado de `key`/`functionKey`, não posição).
+
 ## Pontos abertos / follow-ups para o time
 
 (registros de ambiguidade — não inferi nada nestes; quem precisar deve aprofundar)
