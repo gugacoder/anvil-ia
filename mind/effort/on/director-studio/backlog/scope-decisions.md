@@ -2,12 +2,39 @@
 title: "Director.Studio — Scope decisions log"
 tags: [effort, director-studio, scope, curator]
 created: 2026-05-15
-updated: 2026-05-16
+updated: 2026-05-17
 ---
 
 # Scope decisions — Director.Studio
 
 Append-only. Cada decisão de escopo do curator (aceitar/recusar/dividir/adiar) entra aqui com data, motivo e impacto no manifest.
+
+## 2026-05-17
+
+### F052b — scope-decision: caminho A (refactor cross-app gateway) sequenciado por C (gate F048-runtime-stable)
+
+**Contexto**: archaeologist confirmou (2026-05-17) que as 5 procs `acesso.sp_persistir_configuracao_*` + `acesso.sp_consultar_usuarios_fornecedor` referenciadas pelos models F043 **não existem** em nenhum source nem em 148 bases SQL2k19. A funcionalidade real do legado vive em `portal-aws` com naming distinto (`portal.obter_usuarios_fornecedores`, `agent.persistir_definicoes_agendamento`, `cotacao_*`, etc), consumida via gateway HTTP cross-app `/portal-aws/proc/<schema>.<proc>` (`UtilsController.ExecProc`). Os 5 models do seed F043 estão com naming **inventado** que não bate com o legado.
+
+**Caminhos avaliados**:
+- **A — refactor**: reescrever os 5 models para URL gateway `/portal-aws/proc/...`.
+- **B — banner-débito**: aceitar banner amarelo `proc-not-found` nas 5 pages até refactor.
+- **C — descartar**: tirar 5 pages do escopo P0, adiar pós-bridge-AWS estável.
+
+**Decisão**: **A sequenciado por C**.
+
+1. **RTM proíbe B**: banner amarelo permanente é mock/MVP — usuário não confere serviço pela metade.
+2. **RTM proíbe C puro**: as 5 pages existem em produção no legado (5 rotas reais documentadas: `Fornecedores.jsx`, `Agendamento.jsx`, `Cotacao.jsx`, `Configuracoes/Email/*`, `Configuracoes/IntegradorAWS/*`). Desligar viola cobertura.
+3. **A é o caminho fiel**: padrão real do PortalDirector.Website hoje em produção. F048 já confirmou bridge AWS funcional (smoke 18/18). Sequenciamento por C significa: as 5 pages saem do **P0-cutover portal-director** e entram como **P1 pós-bridge-AWS-runtime-estável** — não perdem cobertura, só esperam infra real.
+
+**Impacto no manifest**:
+- F052b: status `resolved (descoberta)` → `accepted` (curator 2026-05-17, descoberta + decisão; implementação delegada).
+- F043: anotado **débito-rastreado** (4/9 fiel, 5/9 fixture inventada por gap de escavação — corrigido por F090..F094).
+- 5 novas features P1: **F090** (acessos_fornecedor), **F091** (configuracoes_agendamento), **F092** (configuracoes_cotacao), **F093** (configuracoes_email), **F094** (configuracoes_aws — com sub-escavação obrigatória de procs IntegradorAWS antes do smith iniciar).
+- Gate de todas F090..F094: **F048 runtime-stable** (não só smoke mock — bridge consumida com instância real do portal-aws em uso operacional).
+
+**Banner transitório**: durante a janela F052b→F090..F094, banner `proc-not-found` é aceitável **apenas** como placeholder visível de descoberta (não como entregável). Cutover P0 portal-director não inclui essas 5 pages — elas vão num cutover-fase-2.
+
+**Reabertura/promoção**: F090..F094 sobem para `tested→accepted` no fluxo padrão. Quando todas as 5 estiverem `accepted`, F043 perde a marca débito-rastreado e o cutover-fase-2 dispara.
 
 ## 2026-05-16
 
