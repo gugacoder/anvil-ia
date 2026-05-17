@@ -110,3 +110,61 @@ PROIBIDO commit — entregando para auditoria (archaeologist confere contrato; u
 2026-05-17T17:05:00Z [ui-tester] F042 blocked: SQL 172.27.0.121\SQL2k19 inacessivel (timeout 8s) e nenhum VPN client Processa rodando (nordvpn-service ativo, forti/openvpn/wireguard/anyconnect/globalprotect ausentes). Sanity OK (401 sem cookie, login ldap-bridge processa\guga emite director_session). 4 cenarios A/B/C/D todos retornam {ok:false,error:fetch-failed,...} HTTP 500 — nao exercitam two-step fallback. Endpoint shape divergente do contrato legado (GET ?app=&path= em vez de POST body {caminho,chaveAplicacao}) — decisao consciente do Studio, documentar. Tested=— blocked-por-rede. Relatorio: test-reports/F042-cross-app-fallback-model.md. Reabrir com VPN ou staging com tunnel pre-estabelecido.
 [ui-tester] F042 fail: retry com VPN ativa (172.27.0.121 ping OK, SQL2k19 alcancavel). 1/4 cenarios DoD ok (apenas D path-inexistente=404). A/B/C falham: handler retorna fellBack:null em vez de false/true/false; appKey ignorado no lookup (app=cotacao&path=/acessos/usuarios serve idModel:14 do portal-director); auto-declara divergence "TBmodel_pagina sem DFid_aplicacao nesta base — tenancy por app não aplicada (F042)". Causa-raiz: seed F043 nao tem coluna DFid_aplicacao em TBmodel_pagina, pre-requisito do contrato. Curator: decidir schema migration + backfill ou reescrita do contrato.
 2026-05-17T17:07:30Z [orchestrator] F042 needs-rework → deferred; F088 enfileirado (decisão curator: migration schema vs reescrita contrato vs cross-tenant survey)
+
+[2026-05-17T17:30:00Z] [smith] status=wip: F044 Sort DataGrid case-sensitivity — normalizar ordenacao no backend (grid.ts) com map prop->sqlColumn, fallback heuristico (capitalize + DF<prop> prefix) e retry on Invalid-column-name; probe script apps/api/src/scripts/probe-f044.ts.
+
+[2026-05-17T18:05:00Z] [smith] status=ready-for-test: F044 Sort DataGrid case-sensitivity.
+
+Backend (apps/api/src/routes/grid.ts):
+  - Novas funcoes: parseOrdenacao, buildSortVariants, extractInvalidColumnFromError, runProcWithSortRetry, isSafeSortToken, isSafeSortDir.
+  - Pipeline: frontend manda body.ordenacao="<prop>,<dir>" + opcional body.__sortColumnMap={<prop>:<sqlCol>}. parseOrdenacao escolhe entre: (1) override do map (1 tentativa unica), (2) heuristica de variantes prop->CapitalizeFirst(prop)->DF<prop>->DF<CapitalizeFirst(prop)>. runProcWithSortRetry tenta sequencialmente; so retenta se erro for "Invalid column name '<X>'" onde X case-insensitive == variante tentada (anti-loop sobre outros erros). Esgotou variantes -> 500 com mensagem explicita pedindo header.sortKey ou correcao da proc.
+  - Anti-injecao: regex [A-Za-z_][A-Za-z0-9_]{0,63} em todo token de sort (variante e map). Direcao restrita a asc/desc/''.
+  - __sortColumnMap removido do procBody antes do toXml (nao vaza pra proc como tag XML).
+  - Mesma normalizacao em /api/grid/query e /api/grid/export (CSV honra sort tambem).
+  - Resposta /query ganha campo sortResolution: {originalProp, resolvedColumn, dir, attempts:[], wasOverride}.
+  - Pino logger.info ao descer variante ("F044 sort variant rejected, trying next") — nada de console.
+
+Frontend (packages/ui/src/components/data-grid-renderer.tsx):
+  - GridHeader.sortKey?: string novo (opt-in Studio para declarar nome SQL real).
+  - sortColumnMap memoizado: so inclui pares onde sortKey !== prop.
+  - Body de fetch e CSV inclui __sortColumnMap quando o model declara sortKey em algum header.
+  - UI sort state (sortCol/sortDir) inalterado — continua usando header.prop como identificador.
+
+Script (apps/api/src/scripts/probe-f044.ts):
+  - 5 cenarios contra sp_Listar_GrupoTrabalho via /api/grid/query:
+    1. sort by descricao (heuristica),
+    2. sort by id (heuristica, casa critico porque alias=Id mas fonte=DFid_grupo_trabalho),
+    3. sort by ativo_inativo (testa underscore na heuristica),
+    4. sort by descricao com sortKey=Descricao (override explicito),
+    5. no sort (sanity ,,).
+  - Login automatico via $PROBE_USER/$PROBE_PASS ou cookie pre-existente em $DIRECTOR_SESSION_COOKIE.
+  - Saida tabular STDOUT com PASS/FAIL + sortResolution.attempts por cenario.
+  - Exit code 0 se todos PASS, 1 se algum FAIL, 2 se erro fatal (sem cookie/login).
+  - Uso: tsx apps/api/src/scripts/probe-f044.ts
+
+Contrato (mind/atlas/concepts/legacy-contracts/model-valor-datagrid.md):
+  - §Request (`ordenacao`) anotado com asserção F044: normalizacao server-side + heuristica + override via __sortColumnMap derivado de header.sortKey. Divergencia consciente do legado documentada.
+  - §Header ganha linha `sortKey` marcada Studio-only (nao existe no legado), com semantica e exemplos.
+
+Survey legacy SQL (sources/engenharia--fabrica--sql--portal-director):
+  - sp_Listar_GrupoTrabalho NAO esta no corpus (vive so na Area 52 instalada). Corpus revela 3 padroes convivendo nas procs _datagrid/_consultar_/_obter_: (1) CASE WHEN com literal lowercase (dominante em solicitacao.rebaixa, processa.appbuilder.mobile — funciona out-of-box com prop lowercase do frontend); (2) CASE WHEN com literal camelCase (codPedido, codigoempresa, ncupom — exige header.prop exato); (3) dynamic SQL (inferido pelo erro de runtime — exige nome real da coluna SQL como Descricao/DFdescricao). Estrategia F044 cobre (1) e (3); cobre (2) quando o autor do model declara prop=camelCase como ja faz hoje.
+
+Anti-violacao audit:
+  - Zero console em arquivos novos/alterados (probe usa process.stdout/stderr.write; runProcWithSortRetry usa logger.info).
+  - Zero lucide.
+  - Zero hex/rgb/hsl/oklch (apenas backend + tipo TS — sem CSS tocado).
+  - Sem polling.
+  - Sem mutacao de model em tempo de execucao (sortColumnMap memoizado puro de config.headers).
+  - Anti-injecao em todo token concatenado.
+
+Typecheck verde 3 packages: turbo typecheck 9.783s (3/3 cache-miss execucao limpa).
+
+DoD coverage:
+  1. Investigacao das procs sp_Listar_*: feita via corpus portal-director SQL (3 padroes catalogados em decisions); sp_Listar_GrupoTrabalho especifica nao acessivel — assumption documentada (caso 3, dynamic SQL).
+  2. Estrategia (a) escolhida: normalizacao server-side em grid.ts. Map vem de header.sortKey (campo novo Studio-only) — DFchave nao existe no schema legado, divergencia documentada.
+  3. Probe script apps/api/src/scripts/probe-f044.ts: feito (5 cenarios > 3 solicitados).
+  4. Map de normalizacao documentado: comentario em grid.ts §F044 + tabela em backlog/F044-decisions.md + asserção no contrato.
+  5. Typecheck verde 3 packages: verificado.
+
+PROIBIDO commit — entregando para auditoria (archaeologist confere asserção no contrato; ui-tester roda probe-f044.ts na Area 52 com VPN ativa).
+2026-05-17T17:18:23Z [orchestrator] F044 ready-for-test → audit-pending (transição /dwave)

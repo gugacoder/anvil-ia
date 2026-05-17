@@ -133,6 +133,7 @@ Forma canônica:
 | `color` | string (CSS color) | não | Cor do texto da célula e do header | livre | inline-style em `<td>` e `<th>` | model |
 | `bgColor` | string (CSS color) | não | Cor de fundo do header e da célula | livre | inline-style + classe `badge-{bgColor}` quando `type='badge'` | model |
 | `grouppable` | boolean | não (default false) | Habilita agrupar por essa coluna | true/false | `Groupping.handleDrop:35-37` rejeita drop se false | model |
+| `sortKey` | string | não | **F044 (Studio)** — nome literal da coluna SQL usado em `ORDER BY` quando `prop` (alias da resposta) diverge da coluna fonte. Sem `sortKey`, o backend cai em heurística (capitalize / `DF<prop>`). Não existe no legado. | nome de coluna SQL (regex `[A-Za-z_][A-Za-z0-9_]{0,63}`) | propagado pelo `<DataGridRenderer>` no body `__sortColumnMap` | model (Studio-only) |
 | `summarizeColumn` | boolean | não | (v1) Somatório no rodapé | true/false | **ignorado no DataGrid2** (sem rodapé de sumarização) | model |
 
 > Convenções especiais em `row`:
@@ -189,7 +190,7 @@ Render estático em dropdown — não interage com seleção, sorting ou filtro.
 | Body | `{ ...filter, ...additionalFilterParams, pagina, limite, ordenacao }` |
 | `pagina` | número da página corrente (1-based) |
 | `limite` | itens-por-página corrente |
-| `ordenacao` | string `"<column>,<asc|desc>"`; ambos vazios se nada ordenado (`",,"`) |
+| `ordenacao` | string `"<column>,<asc|desc>"`; ambos vazios se nada ordenado (`",,"`). **F044 (Studio)**: o backend `apps/api/src/routes/grid.ts` normaliza este campo — aceita `<prop>` lowercase emitido pelo frontend e tenta variantes (`prop` → `CapitalizeFirst(prop)` → `DF<prop>` → `DF<CapitalizeFirst(prop)>`) caso a proc rejeite com `Invalid column name`. Override explícito via `body.__sortColumnMap = { <prop>: '<colunaSQLReal>' }`, derivado de `header.sortKey` no model. **Divergência consciente do legado**: o legado mandava `<prop>` cru e dependia que cada proc casasse — Studio resolve no servidor sem tocar nas procs. |
 | Auth | header injetado pelo `useRequest` (Bearer do `authState.token`, vide [[obter-model-pagina]]) |
 
 > `additionalFilterParams` é **merge raso** no body — mesmas chaves do filtro sobrescrevem.
