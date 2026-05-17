@@ -36,6 +36,22 @@ Append-only. Cada decisão de escopo do curator (aceitar/recusar/dividir/adiar) 
 
 **Reabertura/promoção**: F090..F094 sobem para `tested→accepted` no fluxo padrão. Quando todas as 5 estiverem `accepted`, F043 perde a marca débito-rastreado e o cutover-fase-2 dispara.
 
+### F090 — accept-decision: 1/5 do caminho A entregue, débito /api-prefix isolado em F106
+
+**Decisão**: **aceito F090** (refactor model `acessos_fornecedor` → gateway `/portal-aws/proc/*`). Critério triplo cumprido:
+
+- **A) Técnico**: contrato `portal-aws-bridge` cobre as 3 procs reais (`portal.obter_usuarios_fornecedores`, `portal.persistir_usuario_fornecedor`, `portal.deletar_usuario_fornecedor`). Audit-pass-with-note do arqueólogo aceitou semântica equivalente (`PortalAwsClient.SendRequest` hardcoded ↔ `IHttpClientService.ExecProc` no legado). Nota maior — mount em `/portal-aws/*` sem prefixo `/api/*` diverge de convention legado (`UtilsController [Route("api/")]`) — **isolada como F106** (P3 follow-up, survey cross-tenant antes de decidir migrar mount ou registrar divergência consciente). Débito explicitamente documentado, não bloqueante para aceitação.
+- **B) MISSION**: primeiro dos 5 refactors do caminho A do F052b — destrava o padrão. Paridade real com `PortalDirector.Website/src/routes/Acessos/Fornecedores.jsx`. Naming inventado F043 (`acesso.sp_consultar_usuarios_fornecedor`) **removido**.
+- **C) Cobertura**: probe 7/7 PASS contra **DB real Imperial Logística** (`DBdirector_imperial_logistica_29`, `DFid_model_pagina=15`, não fixture). Curl autenticado `GET /api/model?app=portal-director&path=/acessos/fornecedores` retorna `modelJson` com 3 URLs gateway corretas (`datagrid.api`, `genericform.endPoint`, `gridActions.execProc`). `POST /portal-aws/proc/portal.obter_usuarios_fornecedores` autenticado → 502 `aws-unreachable` confirma forward via `PortalAwsClient.sendRequest` com URL composta `<baseUrl>/api/proc/<proc>` conforme contrato — falha por portal-aws real off no ambiente local é **gate runtime F048**, fora do escopo F090.
+
+**Discrepância orthogonal aceita**: DoD pedia `path=/acessos/usuarios_fornecedor`, mas `TBpagina.DFcaminho` real é `/acessos/fornecedores`. Caminho de URL da página é orthogonal ao model (resolvido por F042/F088); model em si está correto. Sem impacto na aceitação.
+
+**Impacto no manifest**:
+- F090 `Tested=✓ 2026-05-17` → `Accepted=✓ 2026-05-17`.
+- F043 segue **débito-rastreado** (1/5 das pages quitada; 4 restantes em F091..F094).
+- F106 enfileirado P3, não bloqueia cutover-fase-2.
+- Padrão técnico (rota literal `POST /portal-aws/proc/:proc` + seed idempotente + probe end-to-end com mock bindable na config persistida) **estabelecido como template** para F091..F094.
+
 ## 2026-05-16
 
 ### F025 — scope-decision: deferir como P3, reabrir junto com AppBuilder
