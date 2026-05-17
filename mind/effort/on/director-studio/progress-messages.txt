@@ -261,3 +261,5 @@ Nao cobertos (debitos conscientes, follow-ups):
 
 Typecheck verde nos 3 packages (@workspace/{api,ui,director-studio}). PROIBIDO commit — entregando para ui-tester validar share-modal generation/copy/revoke e share-page para 4 estados (valid/expired/revoked/not-found).
 2026-05-17T19:33:13Z [archaeologist] audit-pass-with-note: F056 — token UUID v4 opaco, server-revogável, anti-enum 404 (com reason exposto desvio consciente UX-driven entropy 122 bits), não toca rendering dashboard. 3 notas: (a) reason exposto registrar ADR/sub-contrato, (b) store em-memória dívida explícita, (c) sub-contrato dashboard-shared-link pendente
+
+2026-05-17T19:46:00Z [ui-tester] F056 pass — backend: probe 5/5 + curls 6/6 (create single/rotation, resolve public, revoke, list filter revogados, anti-enum 404 uniforme). Sessao forjada via Redis (LDAP bridge :4306 responde 500 sucesso=false para guga). UI share-modal/share-page fora de escopo — Vite morto. Relatorio: mind/effort/on/director-studio/test-reports/F056-dashboard-shared-link.md
