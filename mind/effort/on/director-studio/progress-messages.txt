@@ -260,3 +260,4 @@ Nao cobertos (debitos conscientes, follow-ups):
   - Renderer publico de widgets: ValidView mostra metadata; substituicao pelo DashboardSurface read-only com endpoint mediado /api/share/:token/widget/:id/data fica como F056-followup (precisa redesenhar useDashboard hook para aceitar credencial=token em vez de cookie).
 
 Typecheck verde nos 3 packages (@workspace/{api,ui,director-studio}). PROIBIDO commit — entregando para ui-tester validar share-modal generation/copy/revoke e share-page para 4 estados (valid/expired/revoked/not-found).
+2026-05-17T19:33:13Z [archaeologist] audit-pass-with-note: F056 — token UUID v4 opaco, server-revogável, anti-enum 404 (com reason exposto desvio consciente UX-driven entropy 122 bits), não toca rendering dashboard. 3 notas: (a) reason exposto registrar ADR/sub-contrato, (b) store em-memória dívida explícita, (c) sub-contrato dashboard-shared-link pendente
