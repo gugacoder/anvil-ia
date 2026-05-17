@@ -39,6 +39,7 @@ toast.md                # notificação flutuante
 empty-state.md          # estado vazio
 loading-state.md        # estado de carregamento
 error-state.md          # estado de erro
+model-action-form.md    # renderer schema-driven de actionGroups[].rows[][] (F037)
 ```
 
 Cada componente é descrito em seções canônicas:
