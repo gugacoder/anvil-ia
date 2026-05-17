@@ -160,7 +160,7 @@ Universo de `action` (extraído do `switch` em `Actions.js:11-57`):
 | `detailModal` | abrir modal lendo `detailModalConfigs` | **stub** |
 | `execProc` | POST em `execProc` com `{selected}` | **stub** |
 | `sendRequest` | idem `execProc` (sem rótulo de proc) | **stub** |
-| `delete` | abrir confirm modal e deletar | **stub** |
+| `delete` | abrir confirm modal `danger` (`'Confirmar Exclusão'` / `'Tem certeza que deseja realizar a exclusão?'`), POST em `execProc`(/api) com `{ids: selected.toString()}` (ou `{rows: selectedRows}` se `sendSelectRows`); refresh em 700 ms; tradução hard-coded de FK violation. Detalhes completos + 17 asserções em [[grid-action-delete]] (F045). | **stub** |
 | `actionModal` | abrir modal customizado de `actionModalConfigs` | **stub** |
 | `batchEdit` | modal de edição em massa | **stub** |
 | `externalAction` | chamar função nomeada via `executeGenericFunctions` | **stub** |
