@@ -52,6 +52,29 @@ Append-only. Cada decisão de escopo do curator (aceitar/recusar/dividir/adiar) 
 - F106 enfileirado P3, não bloqueia cutover-fase-2.
 - Padrão técnico (rota literal `POST /portal-aws/proc/:proc` + seed idempotente + probe end-to-end com mock bindable na config persistida) **estabelecido como template** para F091..F094.
 
+### F091 — scope-decision: DISCARDED (fundida em F093) + F107 enfileirada (cutover-fase-2 AppBuilder)
+
+**Contexto**: smith bloqueou F091 (`status=blocked: contract-mismatch`) com diagnóstico:
+- Briefing F091 apontava `agent.persistir_definicoes_agendamento` + `agent.persistir_data_bloqueio_agendamento` + procs de consulta como conjunto canônico.
+- Leitura da página-padrão citada `sources/.../PortalDirector.Website/src/routes/Configuracoes/Agendamento.jsx` revelou que essa rota é **só um tab de `<ConfigEmail appKey='agent'>`** consumindo `agent.sp_consultar_configuracao_email` + `agent.persistir_config_email_agendamento` + `/api/teste-email` — **idêntico** ao que F093 (configuracoes_email) já cobre.
+- As 4 procs definições/bloqueio (`persistir_definicoes_agendamento`, `obter_definicoes_agendamento`, `persistir_data_bloqueio_agendamento`, `deletar_data_bloqueio_agendamento`) existem em `sources/.../portal-aws/agent/programacao/*.sql` mas têm **zero hits cross-grep** em `sources/engenharia--fabrica--dotnet-core--director` (PortalDirector.Website + back). Cliente real está fora do Director — provável AppBuilder/agent-UI (`sources/engenharia--fabrica--dotnet--processa.appbuilder/`).
+
+**Caminhos avaliados**:
+- **1 — fundir F091 ≡ F093**: descartar F091 como duplicata; F093 absorve models F043 #2 e #4 com o mesmo conjunto email.
+- **2 — manter F091 separado com escopo `definições+bloqueio` puro**: exige escavação prévia do cliente legado real (AppBuilder/agent-UI).
+- **3 — split semântico** (F091 = definições+bloqueio, F093 = email): mesmo problema do caminho 2 + custo de manter feature bloqueada por dependência externa.
+
+**Decisão — caminho 1**. Justificativa:
+- **MISSION é cutover do Director.Studio**. Agendamento.jsx no PortalDirector.Website é email-only; F091 espelhando a rota real **é** F093.
+- Procs definições/bloqueio não têm consumidor no Director → não bloqueiam cutover-fase-1. Manter F091 separado bloquearia esperando cliente que não existe no escopo da fase atual.
+- F015 (AppBuilder) está deferido (gate reabrir). Quando reabrir, archaeologist faz survey do cliente real dessas procs (provável processa.appbuilder ou app interno) e curator cria features dedicadas no manifest do cutover-fase-2.
+
+**Impacto no manifest**:
+- F091 `status=discarded` (linha preservada como tombstone com explicação curta + ponteiro para F093 e F107).
+- F093 **escopo expandido**: agora cobre models F043 #2 (`configuracoes_agendamento`) **e** #4 (`configuracoes_email`) no mesmo refactor — par de procs email único atende ambos. DoD de F093 ajustado para validar ambos models seedados com URLs gateway corretas (`/portal-aws/proc/agent.sp_consultar_configuracao_email` + `/portal-aws/proc/agent.persistir_config_email_agendamento` + `testEmailApi=/api/teste-email`).
+- **F107 enfileirado** (`status=deferred P3`, gate: F015 reaberto): cutover-fase-2 AppBuilder/agent-UI — procs `agent.{persistir,obter}_definicoes_agendamento` + `agent.{persistir,deletar}_data_bloqueio_agendamento`. Não bloqueia cutover Director.
+- Smith desbloqueado: F091 não retoma; F093 retoma quando F048 estabilizar.
+
 ## 2026-05-16
 
 ### F025 — scope-decision: deferir como P3, reabrir junto com AppBuilder
