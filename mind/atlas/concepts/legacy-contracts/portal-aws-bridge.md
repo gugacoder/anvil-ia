@@ -150,6 +150,39 @@ Observações de comportamento (sem prescrever stack):
 - Senha de vendedor (`'for-' + LEFT(DFcgc, 3)`) é uma regra de negócio rastreada e documentada — não é hash, é o conteúdo plain antes de ir pro `HashBytes` na AWS.
 - O endpoint genérico `POST /api/{appkey}/proc/{proc}` no `UtilsController` é uma **bypass** da bridge (usa outro cliente HTTP) — ao mapear o Studio, verificar se algum consumidor real chama esse caminho com `appkey=portal-aws`, o que duplicaria função.
 
+## Consumo pelos models F043 (Studio — F090..F094)
+
+A partir de F090 (decisão F052b caminho A — 2026-05-17), models do
+`acesso.TBmodel_pagina` consomem a bridge AWS via **URL gateway literal**
+`/portal-aws/proc/<schema>.<proc>` em vez de SQL procs locais. Isso é
+paridade exata com o que `Fornecedores.jsx` (e demais pages
+`Configuracoes/*`) já fazem em produção no legado, onde o
+`PortalDirector.Aplicacao.Controllers.UtilsController.ExecProc(appkey, proc)`
+resolve o appkey `portal-aws` chamando `IHttpClientService.ExecProc` (que
+internamente fala com o mesmo portal-aws documentado nesta página).
+
+No Studio, a rota literal `POST /portal-aws/proc/:proc` (montada em
+`apps/api/src/routes/portal-aws-proxy.ts`) reproduz o gateway: valida sessão
+via cookie httpOnly, sanitiza `[schema.]proc` ASCII, e forwarda via
+`PortalAwsClient.sendRequest` — mesmo cliente e JWT da seção §"Endpoints
+externos" desta página.
+
+Pages que consomem essa porta hoje:
+- `portal-director.acessos_fornecedor` (F090, ✓) — 3 procs:
+  `portal.obter_usuarios_fornecedores`, `portal.persistir_usuario_fornecedor`,
+  `portal.deletar_usuario_fornecedor`.
+- `portal-director.configuracoes_agendamento` (F091, pendente)
+- `portal-director.configuracoes_cotacao` (F092, pendente)
+- `portal-director.configuracoes_email` (F093, pendente)
+- `portal-director.configuracoes_aws` (F094, pendente — sub-escavação)
+
+A rota `/portal-aws/proc/:proc` **não vive sob `/api`** por design: o engine
+schema-driven F009/F011 emite `fetch('/portal-aws/proc/...')` direto a partir
+do `datagrid.api` declarado no model, sem reescrita. Isso preserva a URL 1:1
+com o legado e elimina ambiguidade entre paths SQL (`/proc/<chave>` → forms-proxy)
+e paths gateway (`/portal-aws/proc/<schema>.<proc>` → portal-aws-proxy).
+
 ## Sources
 
 - [[calendar/notes/2026-05-15.md]]
+- [[calendar/notes/2026-05-17.md]] (F090 refactor)
