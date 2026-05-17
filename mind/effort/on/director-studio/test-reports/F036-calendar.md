@@ -1,5 +1,79 @@
 # Test report — F036 ModelCalendarRenderer
 
+**Data**: 2026-05-17 (retry às ~13:45Z)
+**Resultado**: fail (blocked-by-environment — esbuild service crashed)
+
+> **Retry status**: o ambiente foi parcialmente destravado (Vite agora responde HTTP 200 na rota raiz e no `/smoke/f036`), mas o **serviço esbuild interno morreu** e nenhum módulo `.tsx` pode ser transformado. Detalhes na seção §"Retry 2026-05-17T13:45Z".
+
+---
+
+## Retry 2026-05-17T13:45Z
+
+### Sintoma observado in vivo
+
+`http://localhost:3002/smoke/f036` retorna **HTML shell válido (200, 1554 bytes)** com `<div id="root"></div>` vazio, mas React **não monta**:
+
+| Probe | Resultado |
+|---|---|
+| `curl http://localhost:3002/smoke/f036` | HTTP 200, 14ms — shell HTML completo |
+| Chrome MCP `navigate` + `read_page` | `root.children.length === 0`, `body.innerText.length === 0` |
+| Console messages | apenas `[vite] connecting` / `[vite] connected` — zero erros logados |
+| Network requests | 44 capturados; main.tsx/react/router/styles/tree.tsx OK (200) |
+| **Network requests `503`** | **14 módulos `.tsx` retornam 503**: `sonner.tsx`, `smoke-f036.tsx`, `boot.tsx` outros routes, `app-page.tsx`, `login.tsx`, `dashboard.tsx`, `wizard.tsx`, etc. |
+
+### Causa raiz
+
+Fetch direto de `http://localhost:3002/src/routes/smoke-f036.tsx` retorna HTML de erro do Vite contendo:
+
+```
+{"message":"The service is no longer running",
+ "stack":"... esbuild/lib/main.js:999:38 ... sendRequest ... transform ...",
+ "id":"D:/anvil/.../smoke-f036.tsx",
+ "plugin":"vite:esbuild"}
+```
+
+O **esbuild worker do Vite morreu** (provavelmente OOM durante cold-transform do monorepo). Todo módulo `.tsx` requisitado após esse momento retorna 503 com erro `"The service is no longer running"`. Os modules JS pré-bundled em `node_modules/.vite/deps/*` ainda servem (200), por isso o shell HTML + `@vite/client` + react/router carregam — mas qualquer source TSX do app falha o transform, então o `tree.tsx`/`smoke-f036.tsx`/etc. nunca executam o `createRoot`.
+
+Adicionalmente, a primeira tab Chrome travada nesse ciclo bateu `ERR_INSUFFICIENT_RESOURCES`. Tab nova ainda assim observa o mesmo: shell vazio, sem montagem.
+
+### Por que o curl da rota raiz dá 200
+
+O middleware HTML do Vite serve `index.html` direto, sem invocar esbuild. Logo `/smoke/f036` (catch-all SPA) retorna 200 com o shell. O 200 confirma só que o **HTTP server** está vivo, não que o **build pipeline** está. Diagnóstico anterior (probe HTTP 200) era condição necessária mas insuficiente.
+
+### Cenários planejados (não exercitados — mesma lista do bloqueio anterior)
+
+| # | Cenário | Esperado por contrato/spec | Status retry |
+|---|---|---|---|
+| 1 | Cenário 1 — render + 4 status (info/success/warning/destructive) | C6, C7, C12 + UX spec §Schema, §Cores | ✗ não testado (esbuild down) |
+| 2 | Cenário 2 — all-day spanning 3 dias em view week | UX spec §Schema (`endAt` aparece em cada dia, sem barra contínua, decisão consciente §1) | ✗ não testado |
+| 3 | Cenário 3 — empty state | UX spec §Estados:empty + Phosphor `CalendarBlank` + `emptyMessage` (divergência §3) | ✗ não testado |
+| 4 | Cenário 4 — dispatch via `ModelEngine` chave `genericcalendar` | Contrato §"Estrutura do nó `genericcalendar`" + §"Sub-contratos relacionados" | ✗ não testado |
+| 5 | Toggle entre 4 views via ToggleGroup | C4 + UX spec | ✗ não testado |
+| 6 | Gate mobile — `resize_window` 375/414/700px → month vira lista vertical | UX spec §Responsivo:Mobile + divergência §10 | ✗ não testado |
+| 7 | Console limpo | DoD §5 | ✗ não testado |
+| 8 | Tokens semânticos + Phosphor only | DoD §6 + spec §Cores, §Ícones | ✗ não testado |
+
+### Evidência
+
+- Net log: 14 requests `.tsx` com `statusCode: 503`. Os 4 últimos: `smoke-f036.tsx` (503), `app-page.tsx` (503), `wizard.tsx` (503), `sonner.tsx` (503).
+- Curl de `/src/routes/smoke-f036.tsx`: HTML com mensagem `"The service is no longer running"` em `plugin: "vite:esbuild"`.
+- `root.outerHTML.length === 21` (`<div id="root"></div>`).
+- Console: zero erros (Vite não loga falha esbuild no browser; só serve 503 silencioso). Os 503s mostram-se no DevTools Network ou em fetch direto.
+
+### Próxima ação
+
+`fail`. Re-bootstrap necessário do lado do principal/smith:
+
+1. **Reiniciar Vite dev server** (kill PID atual + `pnpm dev` no monorepo root). Esbuild reiniciará junto.
+2. Após reload, verificar que **nenhum módulo `.tsx` retorna 503** — probe rápido: `curl -I http://localhost:3002/src/routes/smoke-f036.tsx` deve dar 200 (não 503).
+3. Quando saudável, retry desta bateria — os 8 cenários acima continuam válidos sem mudança.
+
+Não é possível diagnosticar tokens, motion, a11y, responsivo ou plug-engine via inspeção estática com a precisão exigida pelo DoD. O ui-tester depende do sistema vivo para emitir veredito.
+
+---
+
+## Bloqueio anterior (2026-05-17T13:30Z)
+
 **Data**: 2026-05-17
 **Resultado**: fail (blocked-by-environment)
 **Ambiente tentado**: localhost (Vite dev server porta 3002, conforme `apps/director-studio/vite.config.ts` `WEB_PORT=3002`)
