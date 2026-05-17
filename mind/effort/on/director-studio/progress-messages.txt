@@ -189,3 +189,5 @@ PROIBIDO commit — entregando para auditoria (archaeologist confere asserção 
 2026-05-17T18:02:40Z [archaeologist] audit-pass-with-note: F048 — envelope/auth/path/14-procs/401/404/business500 conformes; nota: 404 unknown-proc é guard-rail do mock, não paridade do legado
 2026-05-17T18:02:40Z [orchestrator] F048 audit-pending → tested (18/18 PASS empírico local + audit OK; pula ready-for-test pois probe foi exercitado pelo próprio smith)
 2026-05-17T18:05:00Z [curator] F048 accepted — audit-pass-with-note + 18/18 PASS empírico exercitando PortalAwsClient real contra mock standalone; envelope/auth/path/14-procs conformes ao contrato portal-aws-bridge; fecha gap caminho-feliz aberto por F024.
+2026-05-17T18:07Z F049 status=wip smith: implementando setup wizard step portal-aws (STUDIO_AWS_JWT_SECRET + URL + DOMAIN), detecção via acesso.TBaplicacao(DFchave='portal-aws'); step opcional após DB.
+2026-05-17T18:12Z F049 status=ready-for-test smith: endpoint /api/setup/detect/portal-aws + step portal-aws.tsx + wizard dynamic STEPS + commitEnv STUDIO_AWS_* (opcionais) + smoke /smoke/f049; typecheck 3/3 verde; aguardando ui-tester.
