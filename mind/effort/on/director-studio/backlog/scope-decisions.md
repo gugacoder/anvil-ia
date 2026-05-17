@@ -11,7 +11,56 @@ Append-only. Cada decisão de escopo do curator (aceitar/recusar/dividir/adiar) 
 
 ## 2026-05-17
 
-### F052b — scope-decision: caminho A (refactor cross-app gateway) sequenciado por C (gate F048-runtime-stable)
+### F092 — scope-decision: split B+gancho-C (4 sub-features proc-based + F109 deferred 5 tabs REST + 3 enablers F108/F110/F113)
+
+Smith bloqueou F092 com contract-mismatch grave (ver `backlog/F092-decisions.md`): `Configuracoes/Cotacao/Cotacao.jsx` é **page-shell de 9 tabs** com 4 superfícies API distintas, não single-form como F043 assumiu. AppKey real é `cotacao` (não `portal-aws`). Briefing original quebra em 3 eixos: forma de proxy multi-app, meta-model tabs, e escopo dos 5 tabs `/cotacaointegrador/*` REST não-proc.
+
+**Decisão curator (caminho B com gancho de C):**
+
+- **NÃO descartar F090-F094** (caminho C puro). F090 já está accepted, F093/F094 são single-tab `<ConfigEmail>`/IntegradorAWS — compatíveis com F043 original ou trivialmente adaptáveis. Descartar é destruir trabalho válido e atrasar cutover.
+- **NÃO deferir F092 inteiro** (caminho A puro). 4 tabs proc-based de Cotacao (gerais/email/logo/usuarios) são single-form-by-tab — implementáveis sob shell-de-tabs. Deferir tudo trava a Área Cotacao do Studio no cutover-fase-1.
+- **Estender F052b caminho A**: além de "1 model = 1 page single-form", admite "1 model = 1 page-shell-tabs com N sub-models". Preserva F090/F093/F094 e habilita F092 multi-tab.
+
+**Split de F092 → 4 sub-features proc-based:**
+
+| sub | tab | proc set | appKey | endpoint shape |
+|-----|-----|----------|--------|----------------|
+| F092a | gerais (`CotacaoConfig.jsx`) | `cotacao_persistir_config_opcoes` + `cotacao_sp_consultar_opcoes` | `cotacao` | `POST /api/cotacao/proc/:proc` |
+| F092b | usuarios (`CotacaoUsuarios.jsx`) | `cotacao_sp_obter_usuarios` + `cotacao_sp_persistir_usuario` | `cotacao` | `POST /api/cotacao/proc/:proc` (path divergente `/cotacao/proc/...` sem `/api` mitigado para canônico — survey F111 confirma se necessário ajuste) |
+| F092c | email (`<ConfigEmail appKey='cotacao'>`) | `cotacao_sp_consultar_configuracao_email` + `cotacao_persistir_config_email` + `/api/teste-email` | `cotacao` | `POST /api/cotacao/proc/:proc` + `POST /api/teste-email` (este último via F112) |
+| F092d | logo (`ConfigLogo.jsx`) | `cotacao_sp_consultar_logo_cliente` + `cotacao_persistir_config_logo_cliente` | `cotacao` | `POST /api/cotacao/proc/:proc` |
+
+F092 (epic) permanece `blocked` como agrupador dos 4 sub. Cada sub independente. F092 aceita só quando os 4 sub aceitos.
+
+**5 tabs Integrador (consulta/sincronizar/monitorar/opcoes/utilitarios)** → enfileirados em **F109 P3 deferred (cutover-fase-2)**. WebAPI `Cotacao.Integrador` é app .NET separada — shape gemelar a F107 (AppBuilder/agent-UI), gate F015 reaberto. NÃO bloqueia cutover-fase-1.
+
+**Enablers novos (bloqueiam F092a-d):**
+
+- **F108 P0** — engine meta-model `pageTabs` no F043: `{ pageTabs: [{ key, label, model: <sub-model> }] }` + renderer-de-tab que monta `<PageTabs>` (reusa UI de F014 já implementada). Renderer chama recursivamente o engine F009 para cada sub-model. Bloqueia F092 inteiro.
+- **F110 P0** — proxy multi-app `POST /api/:appKey/proc/:proc` com discovery dinâmico em `acesso.TBaplicacao(<appKey>)`. Mantém `/portal-aws/proc/:proc` literal de F090 intacto (F106 reconcilia debito `/api/`-prefix em paralelo). Bloqueia F092a-d.
+- **F113 P1** — survey archaeologist: `acesso.TBaplicacao(cotacao)` existe no tenant Imperial Logística (`DBdirector_imperial_logistica_29`) com host/port/secret? Se não, F092 inaplicável neste tenant — cutover bloqueado por dado, não por código. Bloqueia F110.
+
+**Follow-ups suaves (não bloqueiam):**
+
+- **F111 P2** — survey archaeologist do path divergente `/cotacao/proc/...` (sem `/api`) em `CotacaoUsuarios.jsx`. Bug legado (path errado, NGINX wildcard salvou) ou intenção (mount separado)? Mitigação imediata F092b: usar path canônico `/api/cotacao/proc/...` (paridade com `useAppClient` default).
+- **F112 P2** — escavar `/api/teste-email`: backend Director.Website plain REST ou rota proxy? Endpoint precisa estar montado no Studio para tab email (F092c) funcionar end-to-end. Soft-bloqueia F092c (sub aceitável sem botão teste-email, mas com débito declarado).
+
+**Resposta às 6 decisões pendentes do smith em `F092-decisions.md`:**
+
+1. **Proxy multi-app** → F110 (`/api/:appKey/proc/:proc` com discovery em `TBaplicacao`). F090 mantido. F106 reconcilia `/api/portal-aws/` débito em paralelo.
+2. **Escopo cutover-fase-1** → apenas 4 tabs proc-based (F092a-d). 5 tabs Integrador → F109 deferred.
+3. **Meta-model tabs** → F108 cria `pageTabs` no engine. Não refatora F014 (UI já existe, é só consumir).
+4. **F042 cross-app appkey=cotacao** → aplicável sem retrabalho. F042 v2 (accepted ✓ 2026-05-17) já funciona via `TBpagina.DFchaves_aplicacoes` com qualquer appkey.
+5. **F107 vs F109** → shape similar (page-shell + REST não-proc AppBuilder), ambos cutover-fase-2 gate F015. F107 mantido; F109 novo.
+6. **F052b caminho A reescrito?** → NÃO. Estendido. Preserva F090/F093/F094 e habilita F092 multi-tab via F108. Caminho A continua válido — o erro foi assumir que TODA page é single-form, não que pages compostas não couberam no conceito.
+
+Impacto manifest:
+- F092 atualizado: descrição reescrita, `Priority=P1`, `Status=blocked` (gate F108+F110+F113), nota DoD = 4 subs aceitos.
+- F092a, F092b, F092c, F092d criados: P1, todo, gate F108+F110 (F092c soft-gate F112; F092b soft-gate F111).
+- F108, F109, F110, F111, F112, F113 criados.
+- F107 mantido como referência shape-gemelar de F109.
+
+
 
 **Contexto**: archaeologist confirmou (2026-05-17) que as 5 procs `acesso.sp_persistir_configuracao_*` + `acesso.sp_consultar_usuarios_fornecedor` referenciadas pelos models F043 **não existem** em nenhum source nem em 148 bases SQL2k19. A funcionalidade real do legado vive em `portal-aws` com naming distinto (`portal.obter_usuarios_fornecedores`, `agent.persistir_definicoes_agendamento`, `cotacao_*`, etc), consumida via gateway HTTP cross-app `/portal-aws/proc/<schema>.<proc>` (`UtilsController.ExecProc`). Os 5 models do seed F043 estão com naming **inventado** que não bate com o legado.
 
