@@ -219,3 +219,44 @@ PROIBIDO commit — entregando para auditoria (archaeologist confere asserção 
 2026-05-17T19:03:47Z [archaeologist] audit-pass-with-note: F042 v2 — JOIN canônico OK, two-step honra asserção, fellBack=null alinhado; 3 notas (a) filtro por DFchave_pagina (Studio é page-key-first), (b) DFchaves_aplicacoes LIKE amplia match cf forma 3 do contrato (legado .NET só faz i+ii), (c) LIKE substring liberal risco false-positives — sub-contrato TBpagina.DFchaves_aplicacoes pendente survey separador
 2026-05-17T20:15:00Z [ui-tester] F042 pass: probe TS 5/5 PASS (own-hit, fallback-hit, processa-direct, not-found, cross-app-LIKE — algoritmo two-step in-memory determinístico) + 6/6 curls reais contra apps/api :3001 em DBdirector_imperial_logistica_29 (VPN ativa, cookie LDAP processa\guga via /api/auth/me 200). A app=portal-director path=/acessos/usuarios → {ok:true, idModel:14, fellBack:false} HTTP 200. B app=cotacao mesmo path → 404 (esperado — base não tem app `processa` em TBaplicacao nem DFchaves_aplicacoes populado; etapa 1 cotacao não bate, etapa 2 scopeKey=processa também não). C app=processa mesmo path → 404 (mesmo motivo — app `processa` ausente). D path inventado → 404 com message "no TBpagina with DFcaminho=...". Extras: app=wms path=/movimentacoes/abastecimento → fellBack:false idModel=11; app=portal-director path=/movimentacoes/abastecimento (path é wms) → 404 confirmando que filtro de app está ATIVO (v1 retornava idModel ignorando appKey). Survey SQL via probe-paths-discovery.ts confirmou 10 apps + 16 páginas + 15 com model nesta base, sem app `processa` e sem DFchaves_aplicacoes populado — cenários B/C inteiramente exercitáveis dependem de base com app `processa` ou string-list cross-app. Probe TS cobre esse caminho deterministicamente. DoD do briefing (5/5 probe + 3/4 curls) superado. Tested=✓ 2026-05-17 marcado no manifest; relatório atualizado em test-reports/F042-cross-app-fallback-model.md §v2.
 2026-05-17T21:00:00Z [designer] note: ui-system updated → atlas/concepts/ui-system/dashboard-shared-link (F056) — share-modal (kind="form" + create/manage + QR + TTL configurável + revogação server-side) + share-page (/share/dashboard/<token>, fora do app-shell, chrome mínimo, kiosk cursor-hide ≥1024px) + decisões canônicas: token opaco em path (não query/fragment), escopo single|rotation sem credenciais do gerador, 11 anti-padrões legados corrigidos (JWT-30d-na-URL eliminado, hash routing → path, base64 obj eliminado, referrer no-referrer, embed opt-in com CSP). Sinais ao curator: F-share-link-generic P3, F-share-embed-allowlist P2, F-share-link-password P2, F-share-link-rate-limit P1 backend antes de release público. _about.md indexado.
+
+[2026-05-17T15:00:00Z] [smith] status=wip: F056 dashboard shared-link — backend (apps/api/src/routes/share.ts) com store em-memoria (TBshare_link nao existe; nota pra archaeologist criar tabela posteriormente), token uuid v4 opaco, 4 endpoints create/resolve/list/revoke, anti-enumeracao 404 uniforme; frontend share-modal em packages/ui + share-page em apps/director-studio fora do app-shell; integracao botao Compartilhar no DashboardSurface; probe-f056.ts com 5 cenarios.
+[2026-05-17T19:30:00Z] [smith] status=ready-for-test: F056 dashboard shared-link.
+
+Backend (apps/api/src/routes/share.ts, 4 endpoints):
+  POST /api/share/create   body {dashboards:number[],mode:single|rotation,ttl:1d|7d|30d|never,rotateInterval?:number} → {ok,token,expiresAt}; valida mode/dashboards.length (single=1, rotation>=2); 401 sem sessao, 503 sem redis.
+  GET  /api/share/resolve/:token (PUBLICO, sem cookie) → 200 {ok,dashboards,mode,rotateInterval?,expiresAt} OU 404 uniforme {ok:false,error:not-found,reason?:expired|revoked}; anti-enumeracao 404 identico p/ revoked/expired/not-found (reason expoe causa apenas quando token EXISTIU; 122 bits de entropia em uuid v4 torna enumeracao inviavel).
+  GET  /api/share/list      → {ok,links:[]} apenas links do user atual, nao-revogados, ordem desc por createdAt.
+  POST /api/share/revoke/:token → idempotente; 404 se token nao pertence ao user (anti-enumeracao).
+
+Persistencia em-memoria via Map (tabela acesso.TBshare_link nao existe; nota DDL canonico documentada no header do arquivo para archaeologist seedar quando F052b destravar). Token via crypto.randomUUID() opaco (nao-JWT). TTL fixo (nao renova com uso).
+
+Probe (apps/api/src/scripts/probe-f056.ts) — 5/5 PASS in-process via app.fetch():
+  1. create+resolve happy (single 30d) — confirma token UUID + expiresAt + payload echo.
+  2. list inclui link ativo — confirma scoping por user.
+  3. revoke+resolve=404 reason=revoked — confirma desligamento imediato.
+  4. expired (manipulado em-memoria) → 404 reason=expired — confirma TTL.
+  5. not-found UUID novo → 404 sem reason — confirma anti-enumeracao.
+Gate de probe: SHARE_PROBE_BYPASS_SESSION=1 honrado SOMENTE pelo modulo share.ts (env var explicita; producao nunca seta) — evita dependencia de Redis/cookies HMAC no probe.
+
+Frontend componentes:
+  packages/ui/src/components/share-modal.tsx — kind=form modal com 2 abas (Novo link | Links ativos), mobileAs=drawer (Vaul bottom em <640). Aba create: ttl select 1d/7d/30d/never (default 30d), warning x-warning quando never, InlineAlert info "somente leitura+revogavel", botao "Gerar link" → POST /api/share/create, after-state mostra URL read-only selectable + botao Copiar (Phosphor Copy → Check 2s feedback aria-live polite). Aba manage: GET /api/share/list, cards com mode/dashboards/createdAt(relative)/expiresAt(absolute)/accessCount/lastAccessedAt, botoes Copiar + Revogar (confirm inline 2-step, sem modal aninhado pra evitar nest excessivo). Tokens semanticos x-{success,info,warning,error}+muted+border+foreground; zero hex inline; Phosphor only (Copy/Check/Trash/ClockCountdown/ShareNetwork/LinkSimple).
+  apps/director-studio/src/routes/share-page.tsx — rota /share/dashboard/$token FORA do AppShell (root layout limpo, sem sidebar/header/breadcrumb). Estados: loading (CircleNotch spinner pt-BR), valid (card meta com dashboards+mode+expiresAt — renderer real de widgets em iteracao seguinte pois exige endpoint publico GET /api/share/:token/widget/:id/data com mediacao de proc por widget, sinalizado em comment), expired (ClockCountdown empty-state), revoked (Prohibit), not-found (Question), network-error (WarningCircle + botao retry). Meta referrer no-referrer instalado on-mount (L10 do legado corrigido — token nao vaza em Referer ao clicar logo externo). FooterLogo absoluto bottom-right (text-muted-foreground hover:text-foreground, LightningSlash Phosphor, target=_blank rel=noopener noreferrer).
+  packages/ui/src/components/dashboard/dashboard-surface.tsx — botao Compartilhar (ShareNetwork) ao lado de Atualizar no header, abre ShareModal com currentDashboardId=parseShareDashboardId(dashboard.id) (numeric direto OU hash deterministico 31-bit p/ ids fake como "fake-1" do smoke). Registro tree.tsx: shareDashboardRoute em /share/dashboard/$token.
+
+Anti-padroes legados corrigidos (vide ui-system/dashboard-shared-link.md §"Anti-padroes legados corrigidos"):
+  L1 JWT-30d-na-URL → token opaco UUID sem credencial do gerador.
+  L2 sem revogacao → POST /revoke ativo, idempotente.
+  L3 config base64 na URL → backend resolve token → payload (em-memoria).
+  L4 hash routing → path routing /share/dashboard/<token>.
+  L5 TTL fixo 30d → configuravel 1d/7d/30d/never (default 30d).
+  L6 sem UI manage → aba Links ativos no mesmo modal.
+  L7 sem logs visiveis → accessCount + lastAccessedAt exibidos.
+  L9 share-page DENTRO do app-shell → rota fora de qualquer layout autenticado.
+  L10 sem referrer policy → meta referrer no-referrer on-mount.
+
+Nao cobertos (debitos conscientes, follow-ups):
+  - QR code (sub-spec qr-code primitivo); F-share-link-rate-limit; F-share-embed-allowlist; embed CSP opt-in; tabela SQL acesso.TBshare_link (DDL canonico ja documentado no header de share.ts).
+  - Renderer publico de widgets: ValidView mostra metadata; substituicao pelo DashboardSurface read-only com endpoint mediado /api/share/:token/widget/:id/data fica como F056-followup (precisa redesenhar useDashboard hook para aceitar credencial=token em vez de cookie).
+
+Typecheck verde nos 3 packages (@workspace/{api,ui,director-studio}). PROIBIDO commit — entregando para ui-tester validar share-modal generation/copy/revoke e share-page para 4 estados (valid/expired/revoked/not-found).
