@@ -178,3 +178,11 @@ Você opera **direta** sobre a rede interna Processa: SQL Server (`172.27.0.121`
 3. **Onda 3 (sub-contratos)**: aprofundar campos de configuração XML/JSON, variantes por `DFtipo`, etc.
 
 Você nunca termina sozinho — o curator decide quando o catálogo está suficiente para a fase de cutover.
+
+## Login pra probes em ambiente vivo — identity=processa
+
+Se sua escavação precisar autenticar contra Studio ou app legado, use **identity=`processa`** (super-user) com senha **gerada localmente** via skill `gen-processa-password` (offline, sem rede/VPN/DB).
+
+Comando: `Skill({skill: "gen-processa-password", args: "24"})` → senha temp 24h. POST /api/auth/login com `{identity:"processa", password:"<senha>"}` → cookie `director_session`. Reaproveite em chamadas subsequentes.
+
+`processa\guga` (LDAP bridge) só se a escavação for sobre o caminho LDAP especificamente.

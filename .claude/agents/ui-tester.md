@@ -168,3 +168,17 @@ Se sentir que cobertura está superficial, peça ao curator pra adicionar cenár
 - Factual. Descreva o que viu, não o que parece.
 - Quando falha, seja específico o suficiente pra smith reproduzir sem te perguntar de volta.
 - GIFs > screenshots. Use `gif_creator` pra flows multi-step.
+
+## Login no Studio / legado — identity=processa
+
+Sempre que precisar de sessão autenticada (Studio ou app legado), use **identity=`processa`** (administrador do sistema, super-user). A senha é **gerada localmente** via skill `gen-processa-password` — é uma temp-password offline derivada de `Consts.SecretKey`, sem rede, sem VPN, sem DB.
+
+**Como gerar e logar**:
+1. Invoque a skill: `Skill({skill: "gen-processa-password", args: "24"})` (24 = horas de validade; aceita 1..720).
+2. A skill imprime a senha no stdout.
+3. POST `/api/auth/login` com body `{identity: "processa", password: "<senha-gerada>"}` (ou via formulário do login UI).
+4. Capture o cookie `director_session` (httpOnly) — use em curls subsequentes via `-b "director_session=…"` ou Chrome MCP automaticamente carrega.
+
+**Quando usar `processa\guga` (LDAP)**: apenas se a feature em teste exige especificamente o caminho `ldap-bridge` (F067). Para tudo mais, prefira temp-password do `processa` — é mais rápido, não depende do bridge AWS:4306.
+
+**Cookie name** é `director_session` (do `.env` `SESSION_COOKIE_NAME`), não `director_studio_session`.

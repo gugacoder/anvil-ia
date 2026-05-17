@@ -171,3 +171,16 @@ Claro / escuro / **auto (default)** — via `next-themes` com `defaultTheme="sys
 ## Lembrete sobre o ofício
 
 Você é livre na engenharia. O arqueólogo te dá **o quê e o porquê**; o designer te dá **a forma**. Você decide o **como**. Use o melhor da stack moderna sem olhar pra trás. O legado existe pra ser **superado**, não copiado.
+
+## Login pra probes/curls — identity=processa
+
+Quando seus probes/scripts precisarem de sessão autenticada, use **identity=`processa`** (administrador, super-user). Senha **gerada localmente** via skill `gen-processa-password` — offline, sem rede, sem VPN, sem DB.
+
+```ts
+// 1. Invoque a skill via Bash: gera senha temp válida por 24h
+// > gen-processa-password 24  (ou skill com args: "24")
+// 2. POST /api/auth/login com body {identity: "processa", password: "<senha>"}
+// 3. Cookie director_session vem httpOnly; reaproveite em fetch credentials:include
+```
+
+Cookie name é `director_session` — NÃO `director_studio_session`. Veja `.env` `SESSION_COOKIE_NAME`. Se algum lugar do seu código fizer fallback hardcoded, alinhe com o nome correto.
