@@ -124,6 +124,24 @@ Impacto manifest:
 - **F107 enfileirado** (`status=deferred P3`, gate: F015 reaberto): cutover-fase-2 AppBuilder/agent-UI — procs `agent.{persistir,obter}_definicoes_agendamento` + `agent.{persistir,deletar}_data_bloqueio_agendamento`. Não bloqueia cutover Director.
 - Smith desbloqueado: F091 não retoma; F093 retoma quando F048 estabilizar.
 
+### F110 — acceptance: proxy multi-app `POST /api/:appKey/proc/:proc` aceito; F114+F115 enfileirados a partir das notas R5/R19
+
+Smith entregou `ready-for-test`. Arqueólogo emitiu `audit-pass-with-note` com 3 notas (R5 TTL JWT confirmar legado, R7 coexistência `/portal-aws/proc/:proc` documentada, R19 `cotacao-integrador` sem case Basic fora do escopo cutover-fase-1). UI-tester `pass`: probe 13/13 PASS + 6 curls reais autenticados cobrindo 5 appKeys (cotacao Basic R4, agent ausente Imperial R24, Invalid_Key R10/R23, portal-aws coexistência F090 com Bearer R5, setup precedência de rotas literais).
+
+**Critério triplo:**
+
+- **A) Técnico**: `app-registry.ts` (lookup `acesso.TBaplicacao` cache 60s + switch auth-scheme R4/R5 + headers Domain R6 + URL literal sem normalizar trailing R7-R9 + validador kebab-case R10/R23 + classify errors) e `multi-app-proxy.ts` (POST `/:appKey/proc/:proc` + GET `/:appKey/health`, identity-de-serviço FIXA R5 não-propaga usuário, mount em `/api` por último para precedência de rotas literais). F090 `/portal-aws/proc/:proc` literal intacto. `STUDIO_AWS_JWT_SECRET` reusado deploy-wide (= `Consts.SecretKey` legado).
+- **B) MISSION**: enabler P0 caminho crítico. Desbloqueia F092a-d + qualquer appKey futuro registrado em `TBaplicacao`. Sem F110, cutover Cotacao do Studio fica bloqueado em proxy.
+- **C) Cobertura**: 5 appKeys testados em runtime real contra Imperial (`DBdirector_imperial_logistica_29`): `cotacao` (existente, Basic), `agent` (ausente, R24), `Invalid_Key` (validação kebab-case), `portal-aws` (coexistência F090, Bearer), `setup` (precedência rotas literais). 502 `app-unreachable` em POST cotacao proc é gate runtime (backend `:5000` não-up no host local), fora do escopo F110.
+
+**Impacto no manifest:**
+
+- F110 `status=accepted, Accepted=✓ 2026-05-17`.
+- **F114 enfileirado** (`P3 todo`): confirmar TTL real do JWT legado (nota R5). Smith assumiu 24h; arqueólogo escava `AppClientService`/`JwtTokenBuilder` no .NET legado. Não bloqueia cutover.
+- **F115 enfileirado** (`P3 todo`): case especial `cotacao-integrador` no auth-scheme switch quando consumer real emergir (nota R19, gate F109 reabrir cutover-fase-2). Fora do escopo cutover-fase-1.
+- **F092a-d desbloqueadas**: gates F108 (deferred por esbuild mas smith+arch pass), F110 (accepted), F113 (accepted) satisfeitos. Smith pode iniciar 4 subs em paralelo. Soft-gates F111 (path divergente `/cotacao/proc/...`) e F112 (botão teste-email) permanecem como avisos.
+- 3 notas do audit preservadas como follow-ups rastreáveis (R5→F114, R7→já documentado contrato/manifest, R19→F115).
+
 ## 2026-05-16
 
 ### F025 — scope-decision: deferir como P3, reabrir junto com AppBuilder
