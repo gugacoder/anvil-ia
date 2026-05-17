@@ -5,7 +5,7 @@ tags: [contract, legacy, acesso, sql, dotnet, react-tools, director-studio, engi
 sources:
   - "calendar/notes/2026-05-15.md"
 created: 2026-05-15
-updated: 2026-05-15
+updated: 2026-05-17
 ---
 
 # Contrato: `acesso.obter_model_pagina` e endpoint `POST /api/model`
@@ -224,6 +224,63 @@ Observações de comportamento (sem prescrever stack):
     2. Se 0 rows, segunda tentativa: `WHERE DFchave_aplicacao = 'processa' AND ...` mesmo predicado.
     O payload da resposta carrega `fellBack: boolean` discriminando se a segunda etapa foi usada. Frontend loga (não exibe banner — feature transparente). Divergência consciente do legado: o OR combinado original tornava cross-app indistinguível; o Studio é honesto sobre qual aplicação serviu o model.
 - **Bug histórico da proc SQL**: `select * from #temp_funcoes_model` sem WHERE devolve **todas as funções de todas as páginas**. O front legado provavelmente filtra do lado dele ou aceita o desperdício. O caminho .NET já filtra corretamente.
+
+## Asserção F042 — schema survey (2026-05-17)
+
+Em decorrência do F088 (ui-tester observou `Invalid column name 'DFid_aplicacao'` ao executar a primeira etapa do fallback contra a base `DBdirector_Imperial_Logistica_29`), o legado foi escaneado em todas as bases candidatas no servidor `172.27.0.121\SQL2K19` (default port 1433, SQL auth `sl`):
+
+| Métrica | Valor |
+|---|---|
+| Bases enumeradas (`DBdirector%` ∪ `DBaws%` ∪ `%processa%`, `state_desc='ONLINE'`) | 99 |
+| Bases com tabela `acesso.TBmodel_pagina` | 90 |
+| Bases sem a tabela (sub-projetos especializados) | 8 |
+| Bases inacessíveis ao login `sl` | 1 (`DBdirector_xti_29_hom`) |
+| **Bases com coluna `acesso.TBmodel_pagina.DFid_aplicacao`** | **0 (zero)** |
+| Bases com coluna `acesso.TBmodel_pagina.DFchave_aplicacao` | 0 |
+
+Conclusão dura: **a coluna `DFid_aplicacao` nunca existiu em `acesso.TBmodel_pagina`**. Não é caso atípico da Imperial; é o schema canônico do legado em 100% do parque. Idem para `DFchave_aplicacao`.
+
+### Schema real e canônico de `acesso.TBmodel_pagina` (idêntico nas 90 bases amostradas)
+
+```
+DFid_model_pagina    int          NOT NULL  (IDENTITY PK)
+DFvalor              nvarchar     NULL      (JSON serializado da página)
+DFchave_pagina       nvarchar     NULL      (FK lógica para TBpagina.DFchave)
+DFcnpj_cliente       nvarchar     NULL      (tenancy por CNPJ — não exercido)
+DFstatus             nvarchar     NOT NULL  (default 'H' — não filtrado)
+DFdata_modificacao   datetime     NULL      (auditoria)
+```
+
+A tabela **não tem coluna de aplicação**. A discriminação por aplicação só acontece via JOIN com `acesso.TBpagina`, que sim tem:
+
+```
+DFid_aplicacao        int          (FK para TBaplicacao — aplicação primária da página)
+DFchaves_aplicacoes   nvarchar     (lista de chaves de aplicações onde a página também aparece — campo cross-app)
+DFchave               nvarchar     (= TBmodel_pagina.DFchave_pagina, join key)
+DFcaminho             nvarchar     (= path da rota)
+```
+
+### Implicação para F042/F088
+
+A asserção original do F042 — "filtrar `TBmodel_pagina.DFchave_aplicacao` na etapa 1 e cair para `'processa'` na etapa 2" — **não tem base no schema do legado**. O contrato precisa ser reescrito segundo o modelo real:
+
+- A separação por aplicação fica em `TBpagina`, não em `TBmodel_pagina`.
+- O JOIN canônico é:
+  `TBpagina t1 INNER JOIN TBmodel_pagina t2 ON t1.DFchave = t2.DFchave_pagina`
+- O filtro de aplicação fica em `t1.DFid_aplicacao = @id_aplicacao` (após resolver `chave→id` via `TBaplicacao`).
+- O fallback cross-app pode ser implementado de três formas que o legado usa coexistindo (verificar qual o Studio adota é decisão de design, fora do escopo do contrato):
+  1. `OR` legado da proc/.NET: `t1.DFid_aplicacao = @id OR EXISTS(TBaplicacao WHERE DFchave='processa' AND DFid_aplicacao = t1.DFid_aplicacao)` (combina num único query).
+  2. Two-step sequencial: query 1 com `@id_aplicacao` exato; se 0 rows, query 2 com `id` da aplicação `'processa'`.
+  3. Via `TBpagina.DFchaves_aplicacoes` (campo string com lista de chaves separadas) — usado em algumas páginas core.
+
+Saída do F088 indicada por este survey: **saída (b)** — reescrita do contrato para refletir o schema real, removendo qualquer menção a `TBmodel_pagina.DFid_aplicacao`/`DFchave_aplicacao`. Saída (a) (migration adicionando coluna) está descartada: criaria divergência entre Studio e legado em 100% das bases, não 1%.
+
+### Notas de execução do survey
+
+- Servidor real: `SERVERSQL\SQL2K19` (named instance via SQL Browser na default port 1433 com instance string).
+- Conexão usada: `Server=172.27.0.121\SQL2k19;User Id=sl;Password=123;Encrypt=false;TrustServerCertificate=true` (SQL auth — Integrated Security falhou no handshake mesmo com VPN ativa).
+- Probe: `SELECT COUNT(*) FROM [<db>].INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA='acesso' AND TABLE_NAME='TBmodel_pagina' AND COLUMN_NAME='DFid_aplicacao'` para cada base.
+- 8 bases sem a tabela (registrar para escavações futuras de sub-projetos): `DBdirector_7_Setembro_29`, `DBdirector_Feijao_Pereira_29`, `DBdirector_Mais_Brasil_29`, `DBdirector_Munck_29`, `DBdirector_Oximil_29_Contabilidade`, `DBdirector_Sol_Neve_29`, `DBdirector_Tripicom_29`, `DBdirectorData_Bazinho`.
 
 ## Sources
 
