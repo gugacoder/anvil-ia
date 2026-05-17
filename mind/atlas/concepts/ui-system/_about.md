@@ -41,6 +41,7 @@ loading-state.md        # estado de carregamento
 error-state.md          # estado de erro
 model-action-form.md    # renderer schema-driven de actionGroups[].rows[][] (F037)
 model-loading-cache.md  # política de boot/SWR/refresh/erro para /api/model (F041)
+dashboard-shared-link.md # share-modal + share-page rota pública /share/dashboard/<token> (F056)
 ```
 
 Cada componente é descrito em seções canônicas:
