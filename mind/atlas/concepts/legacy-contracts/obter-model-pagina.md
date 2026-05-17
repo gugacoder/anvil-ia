@@ -219,6 +219,10 @@ Observações de comportamento (sem prescrever stack):
 - **`DFstatus` ignorado**: idem — coluna existe (default `H`), repositório não filtra. Models em outros status são entregues normalmente.
 - **`idUsuario` no body é ruído**: o React envia, o Service ignora. Manter compatibilidade ou remover é decisão do Studio.
 - **Cross-app fallback (`OR DFchave='processa'`)** vive **só no repositório .NET**, não na proc SQL. Studio precisa replicar para que páginas "core" funcionem em qualquer app.
+  - **Asserção F042**: o backend Studio implementa o fallback em **duas etapas sequenciais**, não como OR combinado:
+    1. `WHERE DFchave_aplicacao = @appKey AND DFcaminho = @path` (ou `DFchave_pagina = @pageKey` na variante por chave).
+    2. Se 0 rows, segunda tentativa: `WHERE DFchave_aplicacao = 'processa' AND ...` mesmo predicado.
+    O payload da resposta carrega `fellBack: boolean` discriminando se a segunda etapa foi usada. Frontend loga (não exibe banner — feature transparente). Divergência consciente do legado: o OR combinado original tornava cross-app indistinguível; o Studio é honesto sobre qual aplicação serviu o model.
 - **Bug histórico da proc SQL**: `select * from #temp_funcoes_model` sem WHERE devolve **todas as funções de todas as páginas**. O front legado provavelmente filtra do lado dele ou aceita o desperdício. O caminho .NET já filtra corretamente.
 
 ## Sources
