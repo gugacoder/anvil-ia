@@ -192,3 +192,4 @@ PROIBIDO commit — entregando para auditoria (archaeologist confere asserção 
 2026-05-17T18:07Z F049 status=wip smith: implementando setup wizard step portal-aws (STUDIO_AWS_JWT_SECRET + URL + DOMAIN), detecção via acesso.TBaplicacao(DFchave='portal-aws'); step opcional após DB.
 2026-05-17T18:12Z F049 status=ready-for-test smith: endpoint /api/setup/detect/portal-aws + step portal-aws.tsx + wizard dynamic STEPS + commitEnv STUDIO_AWS_* (opcionais) + smoke /smoke/f049; typecheck 3/3 verde; aguardando ui-tester.
 2026-05-17T18:15:21Z [archaeologist] audit-pass-with-note: F049 — STUDIO_AWS_* naming OK, DFchave='portal-aws' canônico, detect endpoint não vaza secret; nota não-bloqueante: error message passthrough setup.ts:134 pode verbose-leak DB internals (pré-existente em /test/db e /test/aws-bridge, hardening separado)
+2026-05-17T18:15:53Z [orchestrator] F049 ready-for-test → deferred (esbuild Vite)
