@@ -11,6 +11,28 @@ Append-only. Cada decisão de escopo do curator (aceitar/recusar/dividir/adiar) 
 
 ## 2026-05-17
 
+### EPIC cutover-fase-1 — bulk-defer P2/P3 polish/follow-up (encerramento)
+
+**Estado RTM:** 100% P0/P1 accepted ou deferred com justificativa. Shell, auth 5-caminhos, engine schema-driven, renderers P0/P1, bridge AWS, hub realtime, refactor F052b (5/5 caminho A: F090 + epic F092 [F092a/b/c/d] + F093 [absorção F091] + F094a) — todos accepted. Enablers F108 (engine page-tabs) e F053/F041 deferred por bloqueio esbuild ambiente, smith+arch pass; reabrem em fase-2.
+
+**Decisão:** bulk-defer das features P2/P3 restantes (`todo`/`wip`/`ready-for-test`) para **cutover-fase-2**. Não-bloqueantes para substituição Director+WMS+ADM+Portal pelos apps cliente. Critério MISSION cumprido.
+
+**Escopo do bulk-defer (status `todo` → `deferred`):**
+
+- **Componentes não-críticos:** F017 FileBrowser, F022 ReorderableGrid, F038 GenericGridCollection (não consumidos pelos models F043 do cutover).
+- **Dashboard avançado (P2):** F055 edit-mode, F057 react-grid-layout, F058 SSE widgets, F059 exhibition rotation, F060 pull-to-refresh, F061 Gauge, F062 widgets unknown-type. F012 view-mode P0 cobre cutover-fase-1.
+- **Realtime escala (P2):** F047 bus Redis Pub/Sub multi-instância. F023 single-instance cobre deploy atual.
+- **Follow-ups P2:** F065 TreeView highlight, F077 fornecedor happy path (gap de dados), F080 select-options-endpoint, F081 linked-filters, F087 acentos PageShell, F089 probe-F044 fix, F097 share-link SQL, F104 tbusuario multi-tenant, F111 path divergente survey, F112 /api/teste-email, F116 contrato logo-uploader, F119 contrato entity-actions.
+- **Follow-ups P3:** F074 processa.com normalize, F075 title HTML, F076 skill gen-temp-password fix, F078 G2 Sheet detalhe, F079 Esc Dialog, F082 PowerSelect flash, F083 Popover tokens, F084 docs PS22 cache, F085 sonner dismiss global, F086 race M5 Esc, F095/F096 F042 follow-ups, F098 cookie hardcoded, F099 renderer share-page, F100 rate-limit share, F101/F102/F103 F063 follow-ups, F105 cabeçalho seed, F106 /api/portal-aws survey, F114 TTL JWT confirm, F115 cotacao-integrador case, F117 engine logoUploader, F118 extrair ConfigEmail/Agendamento, F120 engine entityActions, F121 cleanup DFid=22, F122 XML payload sincronizar.
+
+**Já deferred (mantidos):** F035 ACL denial empirical, F041 cache/refresh model, F053 sub-path divergence, F091 (fundida em F093, discarded), F094b utilitarios, F094c opcoes, F107 AppBuilder agent, F108 engine page-tabs, F109 Cotacao REST não-proc.
+
+**Critério de reabertura:** cutover-fase-1 go-live concluído e estável. Gate F015 (AppBuilder cutover) reabre junto e absorve features gemelares (F107/F109 + correlatos).
+
+**EPIC cutover-fase-1: complete** (2026-05-17). Frente Director.Studio mantém-se em `on/` até cutover real concluído em produção; nenhum item P0/P1 pendente no manifest.
+
+---
+
 ### F092 — scope-decision: split B+gancho-C (4 sub-features proc-based + F109 deferred 5 tabs REST + 3 enablers F108/F110/F113)
 
 Smith bloqueou F092 com contract-mismatch grave (ver `backlog/F092-decisions.md`): `Configuracoes/Cotacao/Cotacao.jsx` é **page-shell de 9 tabs** com 4 superfícies API distintas, não single-form como F043 assumiu. AppKey real é `cotacao` (não `portal-aws`). Briefing original quebra em 3 eixos: forma de proxy multi-app, meta-model tabs, e escopo dos 5 tabs `/cotacaointegrador/*` REST não-proc.
