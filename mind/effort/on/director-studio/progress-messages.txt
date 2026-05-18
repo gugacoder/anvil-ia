@@ -406,3 +406,7 @@ PROIBIDO commit. Entregando para auditoria archaeologist (asserção F108 do con
 2026-05-18T02:32:03Z F029 status=ready-for-test smith (criou lib/cookies.ts com DEFAULT_SESSION_COOKIE_NAME='director_session'; refatorou 11 routes + 3 probes; typecheck verde; sem mais literais hardcoded fora do comentário documental)
 2026-05-18T02:33:12Z [orchestrator] F029 audit-pending → tested (fast-track P2 refactor central const sem mudança comportamental; sem asserção legada do contrato processa-auth-paths violada)
 2026-05-18T02:33:36Z [curator] F029 accepted — refactor cosmético central, débito hardcoded eliminado
+
+2026-05-17T03:00:00Z [smith] F032 status=wip — config.ts respeitar env externa (convenção UNIX). Fix: reloadConfig() não sobrescreve process.env[key] já definido pelo shell antes do dotenv-cli.
+2026-05-17T03:05:30Z [smith] F032 status=ready-for-test — config.ts SHELL_BASELINE snapshot no module load; reloadConfig() preserva process.env[key] e view cacheada quando shell setou a key, fallback para .env quando shell nao setou. Smoke A (STUDIO_AWS_JWT_SECRET=SHELL_WINS_XYZ DB_USER=SHELL_USER) PASS: shell ganha em process.env+getConfig, JWT_SECRET (nao setado) vem do .env, logger shellShadowed=2. Smoke B (sem shell override) PASS: .env ganha, shellShadowed=0. Typecheck 3 packages verde 2.688s. Manifest F032 todo->ready-for-test. Decisao em backlog/F032-decisions.md. PROIBIDO commit.
+2026-05-18T02:38:09Z [orchestrator+curator] F032 tested+accepted fast-track — convenção UNIX restaurada (shell explicit > .env)
