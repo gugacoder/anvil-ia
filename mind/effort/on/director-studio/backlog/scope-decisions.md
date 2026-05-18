@@ -142,6 +142,31 @@ Smith entregou `ready-for-test`. Arqueólogo emitiu `audit-pass-with-note` com 3
 - **F092a-d desbloqueadas**: gates F108 (deferred por esbuild mas smith+arch pass), F110 (accepted), F113 (accepted) satisfeitos. Smith pode iniciar 4 subs em paralelo. Soft-gates F111 (path divergente `/cotacao/proc/...`) e F112 (botão teste-email) permanecem como avisos.
 - 3 notas do audit preservadas como follow-ups rastreáveis (R5→F114, R7→já documentado contrato/manifest, R19→F115).
 
+### F092d — acceptance: tab logo aceito; FECHA EPIC F092 (4/4 subs accepted)
+
+Smith entregou `ready-for-test` para slot 3 (tab logo). Arqueólogo emitiu `audit-pass-with-note` com 12/12 itens byte-perfect `ConfigLogo.jsx` e 2 notas: (1) faltam contrato canônico `model-valor-logo-uploader.md`, (2) `accept`+`acceptMimeTypes` ambos necessários para preservar paridade L60+L130 do legado. UI-tester `pass`: probe 6/6 PASS contra DB real Imperial (VPN ativa permitiu DB shape direto), GET `/api/model` autenticado retorna slot[3].key=logo shape `logoUploader` canônica + slots 0/1/2 (F092a/b/c) preservados, apply 2x byte-perfect (pré=4138B/pós=4138B/equal=true).
+
+**Critério triplo F092d:**
+
+- **A) Técnico**: seed `F092d-model-cotacao-logo.sql` idempotente JSON_MODIFY `$.pageTabs[3]` com guards `THROW 50956-50962` (anti-violação F111+naming-inventado(`sp_*_logo_cotacao`)+appKey-errado em SQL+TS+probe; preserva slots 0/1/2). Shape `logoUploader`: `api`+`endPoint` (consulta GET / persiste POST) + `payloadProp=novoLogo` (L28) + `currentImageProp=logo` (L98) + `maxLengthProp=maxLength` (L45) + `accept=.jpeg,.jpg,.png` + `acceptMimeTypes=[image/jpeg,image/png]` (L60) + strings literais legado.
+- **B) MISSION**: 4/4 do EPIC F092 — FECHA EPIC. Template idempotente `JSON_MODIFY $.pageTabs[N]` cross-sub consolidado para próximas pages multi-tab.
+- **C) Cobertura**: probe 6/6 contra DB real Imperial (DB shape + bridge cotacao Basic R4+Domain R6+URL R7 ambas procs + 3 route gates), POST proc real → 502 `app-unreachable` (cotacao :5000 não-up dev, gate runtime F110 fora escopo).
+
+**Critério triplo F092 EPIC:**
+
+- **A) Técnico**: 4/4 subs accepted individualmente com critério triplo cumprido (F092a gerais + F092b usuarios + F092c email + F092d logo). Template idempotente `JSON_MODIFY $.pageTabs[N]` cross-sub validado — `pageTabs=4 keys=gerais/usuarios/email/logo` em `DFid_model_pagina=18` Imperial.
+- **B) MISSION**: Caminho B+gancho-C validado — "1 model = 1 page-shell-tabs com N sub-models" funcionou em produção. Área Cotacao do Studio cutover-fase-1 destravada. Padrão pronto para reuso em outras pages multi-tab que emergirem do legado.
+- **C) Cobertura**: Enablers todos satisfeitos: F108 (engine page-tabs, deferred por esbuild mas smith+arch pass), F110 (proxy multi-app accepted ✓), F113 (TBaplicacao survey accepted ✓). Deferred F109 (5 tabs REST não-proc → cutover-fase-2 AppBuilder) e F107 (agendamento → AppBuilder) declarados fora escopo cutover-fase-1.
+
+**Impacto no manifest:**
+
+- F092d `status=accepted, Accepted=✓ 2026-05-17`.
+- F092 EPIC `status=accepted, Accepted=✓ 2026-05-17`.
+- **F116 enfileirado** (`P2 todo`): contrato canônico `model-valor-logo-uploader.md` formalizando shape Studio aplicado em F092d (nota arqueólogo). Não bloqueia cutover — shape do model byte-perfect cf legado.
+- **F117 enfileirado** (`P3 todo`): engine renderer `logoUploader` em `ModelEngine` consumindo shape F116 (débito sistêmico D10 declarado em F092d). Gate F116. Não bloqueia cutover — engine-renderer é fase posterior.
+- Soft-gates F111 (path divergente `/cotacao/proc/...` F092b) e F112 (botão teste-email F092c) permanecem como follow-ups rastreáveis, sub-features aceitas com mitigações declarativas.
+- 2 notas do audit F092d preservadas como follow-ups (logo-uploader contrato → F116, engine renderer → F117).
+
 ## 2026-05-16
 
 ### F025 — scope-decision: deferir como P3, reabrir junto com AppBuilder
