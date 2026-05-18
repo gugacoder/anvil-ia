@@ -405,3 +405,4 @@ PROIBIDO commit. Entregando para auditoria archaeologist (asserção F108 do con
 2026-05-18T02:29:34Z F029 status=wip smith (alinhamento cookie name → director_session, criando lib/cookies.ts)
 2026-05-18T02:32:03Z F029 status=ready-for-test smith (criou lib/cookies.ts com DEFAULT_SESSION_COOKIE_NAME='director_session'; refatorou 11 routes + 3 probes; typecheck verde; sem mais literais hardcoded fora do comentário documental)
 2026-05-18T02:33:12Z [orchestrator] F029 audit-pending → tested (fast-track P2 refactor central const sem mudança comportamental; sem asserção legada do contrato processa-auth-paths violada)
+2026-05-18T02:33:36Z [curator] F029 accepted — refactor cosmético central, débito hardcoded eliminado
