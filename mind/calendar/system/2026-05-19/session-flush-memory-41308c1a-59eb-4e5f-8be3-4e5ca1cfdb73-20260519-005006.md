@@ -1,0 +1,150 @@
+**Achados importantes** registrados em [[hipoteses]] (H14, H15, H16) e [[pipeliner-ingestao-xml]]:
+
+- **H14 divergente**: UI **não** tem "Executar agora". Menus de contexto (`...`) em pipeline/stage/action só expõem CRUD.
+- **H15 divergente**: endpoint `POST /api/pipeliner/jobs/exec` existe mas faz proxy via `acesso.TBaplicacao` chave `pipeliner` — esta chave **não está cadastrada** em `DBx_appb_ti_teste` (só `director` em `http://localhost:4310`). Disparo manual via UI/API quebrado sem essa configuração.
+- **H16 em validação**: execução depende do serviço Windows do Pipeliner apontando pra esta DB. Usuário afirma que roda. Polling de `dbo._anvil_log` em background até 8min (background task `b7c9rn4dh`) — aguarda inserção pelo scheduler de 300s.
+
+Princípio operacional reforçado pelo usuário: **agente só cria, usuário dropa** (ver Note 12:35). Teardown do `_anvil_log`, `sp_anvil_teste` e do pipeline cadastrado fica com o usuário.
+
+### Note (16:00) — Troca de interlocutor: Everton assume
+
+**Não é handoff de tarefa — é troca de interlocutor**. O guga me passou o ponteiro pro **Everton**, que é o **PO da frente** [[pipeliner-ingestao-xml]] e detém as **regras de negócio**. Eu sigo a mesma sessão e a mesma frente, agora conversando com o Everton no lugar do guga.
+
+Pontos a lembrar com o Everton:
+- Ele é PO, tem a regra. Quando ele decidir nomes (procedures, tabelas, chave `TBopcoes`, schema do log), os nomes deixam de ser "tentativos" e viram canônicos. Coerente com [[feedback-analista-decide]] (princípio "agente propõe, analista decide").
+- O grupo 4 de [[pipeliner-ingestao-xml]] (regras de negócio) é dele.
+- Os grupos 1-3 e 5 são também úteis: ele provavelmente sabe da infra de teste, técnicas FS, convenções e Fase 2 — não só das regras.
+- Mantenho o protocolo: nada destrutivo (só crio, ele dropa).
+
+Estado da frente em estado de entrega pra ele:
+
+- Tese principal confirmada por código e prova prática.
+- Perguntas pro analista reorganizadas em 5 grupos por prioridade (infra de teste → técnica FS → convenções → regras de negócio → Fase 2).
+- Plano de Fase 1 documentado em [[plano-fase-1]] — não depende do AppBuilder em runtime, mas a UI do AppBuilder é o caminho oficial de cadastro.
+- Walkthrough da UI documentado passo-a-passo em [[pipeliner-ingestao-xml]] e [[area-52]].
+- Hipóteses confirmadas: H1, H7, H11. Divergentes: H9, H14, H15. Em validação: H16.
+- Bloqueadores restantes: H2, H3, H6, H8 (parcial) — dependem do conhecimento do Everton sobre técnicas do time e do ambiente.
+- Ferramentas a construir (decisão arquitetural): MCP `processa-sql` + Skill `/director-importer` SQL-only — pendentes.
+
+Background monitor `b7c9rn4dh` ainda rodando pra validar H16 — vai notificar quando completar (sucesso = linha em `dbo._anvil_log`; timeout = 8min sem inserção).
+
+### Note (16:08) — Monitor terminou: TIMEOUT, H16 divergente
+
+8 minutos de polling em `dbo._anvil_log` → 0 linhas. Cadastro pela UI funcionou (pipeline 8273 + stage 8373 confirmados no DB), mas o serviço Windows do Pipeliner não disparou `sp_anvil_teste` neste ambiente.
+
+Hipóteses pro caso:
+1. Serviço Windows do Pipeliner não está rodando contra `DBx_appb_ti_teste`.
+2. Está rodando mas filtra por algo (ex: ambiente, flag de publicação).
+3. Intervalo de "primeira execução após cadastro" é maior que `tempoExecucao` (alguns schedulers só começam a contar no próximo tick administrativo).
+4. Falta um passo de "publicação"/"deploy" depois do cadastro pra ativar a entrada.
+
+Marcado H16 como divergente em [[hipoteses]]. Task #3 fechada — cadastro provado, execução pendente de investigação com o Everton.
+
+### Session (17:00-17:50) — Migração da base + repointar AppBuilder pra DBx_appb_ti_teste
+
+**Context:** Localizamos instaladores e ferramenta de migração de schema na rede; migramos `DBx_appb_ti_teste`; descobrimos via SSH que o AppBuilder já roda no Srv-DirectorWeb apontando pra outra base; repointamos via edição direta do `appsettings.json`; e abrimos firewall pra 4305.
+
+**Key Exchanges:**
+- Guga apontou `\\172.27.0.4\Projetos\Engenharia\Processa.Appbuilder` como share oficial da fábrica com MSIs e `ScriptPack`.
+- Investigação do source localizou `Fontes/Setup/Setup.vdproj` (Visual Studio Installer Project) + `msiTools/InstallService.js` (cria appsettings.json + serviço Windows) e `.gitlab-ci.yml` que automatiza build+install via runners `engcompiler` e `serverbeta`.
+- Guga: "ainda nao carrega http://172.27.0.52:4305/" — diagnóstico revelou ausência de regra inbound pra 4305 (a regra `Portal.Director` cobre 4300 e 4600, mas 4305 nunca tinha regra — InstallService.js do AppBuilder não cria regra de firewall).
+
+**Decisions Made:**
+- Migrar `DBx_appb_ti_teste` aplicando o pacote `appbuilder` do ScriptPack — idempotente, base já tinha 67 tabelas, ficou com 296 procs após migrate.
+- Não reinstalar o AppBuilder — editar `appsettings.json` em dois locais (`ProgramData` + `Program Files (x86)`) com backup `.bak-YYYYMMDD-HHmmss` e reiniciar o serviço. Reinstalação MSI iria parar+deletar serviço; edição direta é menos invasiva e reversível.
+- Criar regra de firewall `Processa.AppBuilder` inbound TCP/4305 Profile=Any (mesmo padrão das outras regras).
+
+**Lessons Learned:**
+- **ScriptPack-Appbuilder.exe** é ferramenta migrant.lib genérica. Comandos: `encode CREDENCIAL` (criptografa pra usar em URIs como `{HASH}`), `migrate URI...`, `get-info`, `export`. Para AppBuilder: kind `Director(mssql)` + pacote `appbuilder`. URI aceita backslash literal pra named instance: `mssql://{HASH}@172.27.0.121\SQL2k19/DBx_appb_ti_teste`. Url-encoded `%5C` falha. Idempotente. O `[fault]The handle is invalid` em stderr é cosmético (Console.GetBufferInfo em processo sem console real) — ignorável.
+- **Srv-DirectorWeb (172.27.0.52 / "Área 52")** roda 3 serviços Windows da Processa como `LocalSystem`/Automatic. .NET 8 e 10 instalados. Windows Server 2019. Os 3 serviços inicialmente apontavam **todos pra mesma DB** `DBdirector_ti_29_homo`. Connection string em base64, guardada em **dois lugares**: `Program Files (x86)\Processa Sistemas\<App>\appsettings.json` (lida pelo .exe) e `ProgramData\Processa Sistemas\<App>\appsettings.json` (fallback usado pelo InstallService.js em reinstalação silenciosa).
+- **OpenSSH no Windows com domínio**: username `processa\guga` (escaped: `processa\\guga`) funciona. Shell default é **PowerShell**, não cmd — `ver`/`%VAR%` falham. Pra passar scripts complexos sem dupla expansão pelo PS local: codificar UTF-16LE → base64 → `powershell -EncodedCommand`. Paramiko via `uv run --with paramiko` substitui `sshpass` no Windows.
+- O usuário `processa\guga` tem privilégios admin no Srv-DirectorWeb (Restart-Service, Set-Content em `Program Files`, New-NetFirewallRule).
+- Firewall do Srv-DirectorWeb: regra `Portal.Director` cobre 4300+4600. Pra 4305 do AppBuilder **nenhuma regra existia** (provável artefato de instalação manual). Padrão de nomenclatura: nome da regra = nome do serviço. `Get-NetFirewallPortFilter | Where LocalPort -eq N` é o caminho confiável pra achar regras por porta (filtrar por DisplayName perde regras com nomes genéricos).
+
+**People / Entities Mentioned:**
+- `\\172.27.0.4\Projetos\Engenharia\Processa.Appbuilder` — share oficial com MSIs (1.10.1 até 1.14.0 mais recente, ~40MB) + `ScriptPack-Appbuilder.exe` + `changelog.txt` + `Host.txt`.
+- Srv-DirectorWeb (172.27.0.52) — Windows Server 2019, hosts os 3 serviços Processa em homologação/dev interno.
+- `serverbeta` / `retrocompatibilidade` — tags de runners GitLab que recebem deploy automático em tags da branch `homologacao` / `master`. `serverbeta` é provavelmente o próprio Srv-DirectorWeb.
+
+**Action Items:**
+- Inconsistência aceita: AppBuilder agora aponta pra `DBx_appb_ti_teste` mas `Director.Web` e `Director.Portal` continuam em `DBdirector_ti_29_homo`. Pode dar inconsistência se algum fluxo cruzar. Backups dos `appsettings.json` originais em `.bak-20260514-150106` no servidor.
+- Se atualizar versão do AppBuilder algum dia, MSI mais recente é 1.14.0 (instalado é 1.13.1). Reinstalação silenciosa preserva connection string atual via fallback no InstallService.js (lê do `ProgramData\...\appsettings.json`).
+
+**Open Questions:**
+- Onde roda o serviço Windows do Pipeliner que **deveria** apontar pra `DBx_appb_ti_teste`? (continua aberta da Note 16:08 / H16). Agora que temos SSH no Srv-DirectorWeb, foi confirmado: `Get-Service` lista só `Director.Portal`, `Director.Web`, `Processa.AppBuilder` — **não tem Pipeliner instalado nesse servidor**. Ou roda em outro servidor, ou não está instalado em lugar nenhum desse ambiente.
+
+Também: o sistema de memória do projeto é `mind/` (LYT), não `~/.claude/projects/.../memory/`. O projeto é compartilhado — memórias em pasta de usuário ficam só num PC. Tudo que for durável vai pro `mind/` e é versionado.
+
+
+
+## Your Task
+
+Read the daily log above and compile it into wiki articles following the schema.
+
+### Rules
+
+1. **Extract key concepts** — Identify 3–7 distinct concepts worth their own article.
+2. **Create concept articles** in `atlas/concepts/` — one `.md` file per concept.
+   - Use the exact article format from the schema (YAML frontmatter + sections).
+   - Include `sources:` in frontmatter pointing to the daily log file.
+   - Use `[[concepts/slug]]` wikilinks to link to related concepts.
+   - Write in encyclopedia style — neutral, comprehensive.
+3. **Create connection articles** in `atlas/connections/` if this log reveals a non-obvious relationship between 2+ existing concepts.
+4. **Update existing articles** if this log adds new information to concepts already in the wiki.
+   - Read the existing article, add the new information, add the source to frontmatter.
+5. **Update HOME.md** — add new entries to the table.
+   - Each entry: `| [[path/slug]] | One-line summary | source-file | 2026-05-19 |`
+6. **Append to calendar/log.md** — add a timestamped entry:
+
+   ```
+   ## [2026-05-19T00:48:00-03:00] compile | 2026-05-14.md
+   - Source: calendar/notes/2026-05-14.md
+   - Articles created: [[concepts/x]], [[concepts/y]]
+   - Articles updated: [[concepts/z]] (if any)
+   ```
+
+### File paths
+
+- Write concept articles to: D:\anvil\mind\atlas\concepts
+- Write connection articles to: D:\anvil\mind\atlas\connections
+- Update index at: D:\anvil\mind\HOME.md
+- Append log at: D:\anvil\mind\calendar\system\log.md
+
+### Quality standards
+
+- Every article must have complete YAML frontmatter
+- Every article must link to at least 2 other articles via `[[wikilinks]]`
+- Key Points section should have 3–5 bullet points
+- Details section should have 2+ paragraphs
+- Related Concepts section should have 2+ entries
+- Sources section should cite the daily log with the specific claims extracted
+
+**Assistant:** Let me start by reading the existing articles and the daily log to identify what's already compiled and what's new.
+
+**Assistant:** The 2026-05-14 log was already compiled once (see log entry at `2026-05-14T18:30:00`). However, comparing the existing articles against the full log, I can see the **Session (16:40)** about Director.Web being a multi-app host with 12 SQL modules was **not captured** in the existing `director-web.md`. Let me verify what's missing.
+
+**Assistant:** The 2026-05-14 log was already compiled (log entry `2026-05-14T18:30:00`), but **Session (16:40)** — the discovery that Director.Web is a **multi-app host** with 12+ SQL modules — was never captured in the existing `director-web.md`. This is a significant architectural insight. Let me update the article and index.
+
+**Assistant:** Now update HOME.md to reflect the enriched summary for director-web:
+
+**Assistant:** Now append the incremental compile entry to log.md:
+
+**Assistant:** Done. Here's the summary of what was compiled:
+
+**Analysis**: The 2026-05-14 daily log was already compiled once (`2026-05-14T18:30:00`), but **Session (16:40)** was missed — the discovery that Director.Web is a multi-app host with 12+ SQL modules.
+
+**Changes made:**
+
+1. **Updated `atlas/concepts/director-web.md`**:
+   - Rewrote intro to reflect multi-app host nature (not single app)
+   - Added new "Modulos conhecidos" section with table of all 12 SQL modules
+   - Added Key Point about multi-app hosting and `module.info` config
+   - Added "Open Questions" section (app loading mechanism, per-module frontends)
+   - Expanded Related Concepts (added `acesso-metamodel`, `director-studio`, `react-tools`)
+   - Updated sources to cite the Session 16:40 discoveries
+
+2. **Updated `HOME.md`** — director-web summary changed from "Frontend operacional" to "Host multi-app do Director ERP (12+ módulos: WMS, Pipeliner, GDE, etc.)"
+
+3. **Appended to `calendar/system/log.md`** — incremental compile entry documenting the missed session
+
+No new articles were needed — the multi-app architecture is intrinsic to what Director.Web IS, not a separate concept.
