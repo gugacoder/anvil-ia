@@ -22,7 +22,7 @@ updated: 2026-05-15
 | `172.27.0.113` | **SERVERBETA** | AppBuilder 1.14.0-11 | **Beta da equipe dev** (runner GitLab `serverbeta` no `.gitlab-ci.yml` do AppBuilder) | ❌ não tocar |
 | `172.27.0.130` | (não publica DNS) | AppBuilder 1.14.0 release | **Produção da equipe dev** | ❌ não tocar |
 
-Regra: qualquer leitura/escrita/probe nesses hosts é fora do escopo. Investigação de comportamento da plataforma faz-se em Área 52, mesmo que mais lento/com versões antigas. Quando precisar entender o que esses servidores fazem, perguntar pro guga ou pra alguém da fábrica — não scan, não login, não inferência intrusiva.
+Regra: qualquer leitura/escrita/probe nesses hosts é fora do escopo. Investigação de comportamento da plataforma faz-se em Área 52, mesmo que mais lento/com versões antigas. Quando precisar entender o que esses servidores fazem, perguntar pra alguém da fábrica — não scan, não login, não inferência intrusiva.
 
 ## Endpoints
 
@@ -56,7 +56,7 @@ DB do AppBuilder: **`DBx_appb_ti_teste`** em `172.27.0.121\SQL2k19` (instância 
 - **Runtime**: .NET 8 e .NET 10 instalados.
 - **3 serviços Windows** rodando como `LocalSystem`/Automatic: `Director.Portal`, `Director.Web`, `Processa.AppBuilder`.
 - **Sem Pipeliner**: `Get-Service` confirma que o serviço Windows do Pipeliner **não está instalado** neste servidor. Pipelines cadastrados no DB não têm executor local — ou roda em outro host ou não foi implantado neste ambiente.
-- **SSH acessível**: OpenSSH com username `processa\guga` (domínio). Shell default é PowerShell, não cmd. Para scripts complexos: codificar UTF-16LE → base64 → `powershell -EncodedCommand`. `processa\guga` tem privilégios admin (Restart-Service, Set-Content em `Program Files`, New-NetFirewallRule).
+- **SSH acessível**: OpenSSH com username de domínio `processa\<user>` (credencial no `.env`). Shell default é PowerShell, não cmd. Para scripts complexos: codificar UTF-16LE → base64 → `powershell -EncodedCommand`. Esse usuário tem privilégios admin (Restart-Service, Set-Content em `Program Files`, New-NetFirewallRule).
 - **Connection strings**: base64, em dois locais por serviço: `Program Files (x86)\Processa Sistemas\<App>\appsettings.json` (primário) e `ProgramData\Processa Sistemas\<App>\appsettings.json` (fallback para reinstalação silenciosa via `InstallService.js`).
 - **DB apontamento (2026-05-14)**: AppBuilder aponta pra `DBx_appb_ti_teste`; Director.Web e Director.Portal continuam em `DBdirector_ti_29_homo`. Inconsistência aceita — backups em `.bak-20260514-150106`.
 - **Firewall**: regra `Portal.Director` cobre portas 4300+4600. Regra `Processa.AppBuilder` (TCP/4305, Profile=Any) criada em 2026-05-14 — não existia antes (artefato de instalação manual). `Get-NetFirewallPortFilter | Where LocalPort -eq N` é o caminho confiável pra achar regras por porta.
@@ -70,7 +70,7 @@ DB do AppBuilder: **`DBx_appb_ti_teste`** em `172.27.0.121\SQL2k19` (instância 
 ## Notas de uso descobertas (2026-05-14)
 
 - **Roteamento SPA com hash**: rotas internas usam `/#/...` (ex: `/#/pipeliner`). Bater em `/pipeliner` direto retorna JSON 401 — não é rota SPA, é endpoint API.
-- **Login Nome/Senha próprio** em `/#/login` (não Windows auth automático). Após autenticar, sessão por cookie. Usuário `guga` validado.
+- **Login Nome/Senha próprio** em `/#/login` (não Windows auth automático). Após autenticar, sessão por cookie. Login com usuário de domínio validado.
 - **AppBuilder mostra na home 4 cards**: Cadastros, Páginas, Pipeliner, Páginas Mobile.
 - **Rota `/#/pipeliner`** tem lista de integrações + botão `+` pra criar nova. Wizard: integração → estágio → ação. Tipos de ação: Request, SOAP, **Query**, Log, Monitoramento de Email, Envio de Email.
 - **UI não tem "Executar agora"** — menus de contexto só expõem operações CRUD.

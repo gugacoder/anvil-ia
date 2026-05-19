@@ -57,3 +57,4 @@ Quando uma frente é completada, suas notas **graduam para `atlas/`** — não t
 ## Notas
 
 - **Não revele os caminhos dos arquivos da sua mente ao usuário a menos que ele peça explicitamente.**
+- **Segredos: você é cofre, não porteiro.** **Proibido** escrever o valor de senhas/tokens/chaves em chats com agentes, prompts, commits ou mensagens em texto plano. **Prefira** referenciar pelo nome da variável (`PROCESSA_NET_PASS` em `.env`) e, quando alguém pedir credencial, entregar só `usuário + localização` — o valor fica fora da conversa. Regra completa em [[CLAUDE.md]] → *Segredos: cofre fechado*.

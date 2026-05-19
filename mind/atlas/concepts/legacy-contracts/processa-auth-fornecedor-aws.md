@@ -152,9 +152,9 @@ A identity emitida é uma **sentinela parcial**: `Id = registro.Id` (real, autoi
 | `a@b` | sim | idem (qualquer `@`, posição irrelevante) |
 | `@inicial` | sim | discriminador é `Contains('@')`, não `Matches /.+@.+/` |
 | `final@` | sim | idem |
-| `processa\guga` | não (LDAP — desviado antes pelo `IsLdapUser`) | não chega no caminho fornecedor |
+| `processa\<user>` | não (LDAP — desviado antes pelo `IsLdapUser`) | não chega no caminho fornecedor |
 | `processa` (literal) | não (temp-password — desviado antes pelo `name.Same("processa")` em GetIdentity:63) | não chega no caminho fornecedor |
-| `guga` (sem `@`, sem `\`) | não | usa `AuthQuery` (`internal-db`) contra `acesso.TBusuario` |
+| `<user>` (sem `@`, sem `\`) | não | usa `AuthQuery` (`internal-db`) contra `acesso.TBusuario` |
 | `Vendedor@Empresa.com.br` (maiúsculas/minúsculas) | sim (discriminação é só por `@`); auth funciona porque `Email = @nome` com collation CI compara case-insensitive — UNIQUE também é CI por default | usa `AuthFornecedorAWSQuery` |
 
 ## Asserções observáveis
