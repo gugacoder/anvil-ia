@@ -5,7 +5,7 @@ tags: [plataforma, processa, renderizacao, metamodelo, projeto]
 sources:
   - "calendar/notes/2026-05-15.md"
 created: 2026-05-15
-updated: 2026-05-15
+updated: 2026-05-19
 ---
 
 # Director.Studio
@@ -21,6 +21,9 @@ A nomenclatura segue o padrão de IDEs/ambientes de engenharia (Visual Studio, A
 - **Backend Node** fala direto com SQL local (mssql) e com o bridge AWS em `52.67.203.133:4306` (ver [[processa-auth-paths]]) — sem .NET intermediário.
 - **Auth idêntico ao atual** nos 5 caminhos do [[processa-auth-paths]]; o Studio é mais um cliente Processa do ponto de vista do bridge AWS.
 - **Frontend é casca**: a tese é a mesma do `<AppMain />` do [[react-tools]], mas a implementação é livre — shadcn/Tailwind ao invés do Bootstrap/CSS custom do react-tools.
+- **Stack definido**: Vite 7 + React 19 + TanStack Router + Tailwind 4 + shadcn v4 + Phosphor Icons (Lucide proibido) + Framer Motion + Vaul + next-themes. Backend: Hono + Pino + tsx + mssql + ioredis + SSE (polling e WebSocket proibidos).
+- **Auth diverge do legado**: cookie httpOnly + sessão server-side (Redis no protótipo → tabela SQL pré-cutover). Studio NÃO emite JWT compatível com Processa.Sdk salvo em modo `processa-interop`. Valida senhas via `dbo.VALIDAR_CRIPT` (ver [[validar-cript]]) durante coexistência.
+- **Time de 5 agentes**: archaeologist, designer, curator, smith, ui-tester — separação rígida de mandatos com princípio de não-contaminação (ver [[director-studio-agent-team]]). Execução via wave model feature-locked (ver [[director-studio-wave-model]]).
 
 ## Diagrama — Topologia atual vs Studio
 
@@ -95,6 +98,20 @@ A separação cadastro-vs-runtime do [[appbuilder]]/[[director-web]] também des
 
 O risco arquitetural está concentrado no item 2 da análise (runtime de templates): replicar bit-a-bit o contrato do `react-tools.AppMain` com o backend .NET. Cada convenção implícita (campo opcional X que muda comportamento, flag Y interpretada de jeito sutil) precisa ser descoberta — daí a frente de documentação do metamodelo precede a implementação.
 
+### Stack e infraestrutura (2026-05-15)
+
+Frontend: Vite 7, React 19, TanStack Router, Tailwind 4, shadcn v4, Phosphor Icons (Lucide proibido — conflito com Design System), Framer Motion, Vaul, next-themes (default `system`/auto). Backend: Hono (não Express), Pino (logger), tsx (dev runner), mssql (driver SQL Server), ioredis (sessões), SSE para realtime (polling proibido, WebSocket proibido).
+
+Infra Docker em 3 compose files: `platform.yml` (SQL Server + Redis), `platform.dev-ports.yml` (portas de dev), `docker-compose.yml` (app). Scripts npm `platform:up/down` (dev) e `docker:up/down` (prod) via `dotenv-cli`. Caddy embarcado como proxy reverso interno com `host.docker.internal:host-gateway`. Convenção PREFIX de portas: `${PREFIX}00`=Caddy, `${PREFIX}01-09`=apps, `${PREFIX}10+`=serviços extras — permite N projetos paralelos sem colisão.
+
+Auth do Studio diverge conscientemente do legado: cookie httpOnly + sessão server-side (Redis no protótipo, tabela SQL antes do cutover final). O Studio NÃO emite JWT compatível com `Consts.SecretKey` do Processa.Sdk salvo em modo `processa-interop` para coexistência. Wizard de setup escreve `.env` atomicamente; LDAP continua via bridge AWS (não direto).
+
+Descoberta operacional: `AuthQuery` usa schema `dbo.*` (não `acesso.*`) na maioria das bases — `TBusuario` e `TBempresa` vivem em `dbo`. Smith implementou schema-aware probe via `INFORMATION_SCHEMA` com fallback `acesso→dbo` e cache. `portal.UsuarioFornecedor` (auth path 4 — fornecedor por email) não existe em toda base — é específico de instalações com integração de fornecedores.
+
+### Manifest seed (2026-05-15)
+
+27 features (F001-F027) no `feature-manifest.md`. Cobertura RTM 100% obrigatória — sem MVP/mock. Manifest gerenciado pelo curator, expandido incrementalmente pelo archaeologist. Harness de execução: `/dwave` em `/loop` self-paced (ver [[director-studio-wave-model]]).
+
 ## Related Concepts
 
 - [[acesso-metamodel]] — schema `acesso.*` que descreve apps/menus/páginas no banco; é o contrato que o Studio renderiza
@@ -103,7 +120,10 @@ O risco arquitetural está concentrado no item 2 da análise (runtime de templat
 - [[appbuilder]] — sistema legado que é o ancestral conceitual do Studio (cadastro); será absorvido
 - [[director-web]] — frontend operacional cuja simplicidade (20 linhas) é a evidência mais forte da viabilidade do Studio
 - [[appbuilder-directorweb-topology]] — separação cadastro/runtime atual, que o Studio dissolve
+- [[director-studio-agent-team]] — time de 5 agentes com princípio de não-contaminação
+- [[director-studio-wave-model]] — harness de execução feature-locked via `/dwave`
+- [[validar-cript]] — criptografia legada reversível que o Studio herda durante coexistência
 
 ## Sources
 
-- [[calendar/notes/2026-05-15.md]] — sessão de descoberta do metamodelo, leitura do `Processa.Sdk.Auth`, decisão pelo nome Director.Studio, escopo do protótipo em `workspace/director-studio/`
+- [[calendar/notes/2026-05-15.md]] — sessão de descoberta do metamodelo, leitura do `Processa.Sdk.Auth`, decisão pelo nome Director.Studio, escopo do protótipo em `workspace/director-studio/`; bootstrap do workspace com stack definido; montagem do time de 5 agentes; wave model feature-locked; manifest seed de 27 features; bloqueio F003 resolvido via fn_Decript

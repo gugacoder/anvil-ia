@@ -5,7 +5,7 @@ tags: [auth, processa, sdk, ldap, jwt, ecosistema]
 sources:
   - "calendar/notes/2026-05-15.md"
 created: 2026-05-15
-updated: 2026-05-16
+updated: 2026-05-19
 ---
 
 # Caminhos de autenticação Processa
@@ -21,6 +21,9 @@ A descoberta-chave: **nenhum dos caminhos exige .NET local** — eles falam SQL 
 - **LDAP nunca é direto**: o servidor do cliente fala HTTP com bridge `http://{ServidorAutenticacao}:4306/api/auth/validate`, que internamente conecta `dc1.processa.com` via `ProcessaLDAPAuth` (Novell.Directory.Ldap).
 - **DB local cobre 2 dos 5 caminhos**: `AuthQuery` para usuário interno (`TBusuario` + `dbo.VALIDAR_CRIPT`), `AuthFornecedorAWSQuery` para email (`portal.UsuarioFornecedor` + `HashBytes('SHA2_256', ...)`).
 - **Senha temporária `processa`** é validável offline — algoritmo baseado em substrings da `SecretKey` + timestamp, sem rede.
+- **Schema `dbo` vs `acesso`**: `TBusuario`/`TBempresa` vivem em `dbo` na maioria das bases (não em `acesso`). Studio implementou probe via `INFORMATION_SCHEMA` com fallback `acesso→dbo`.
+- **`portal.UsuarioFornecedor` não é universal**: o schema `portal` e a tabela `UsuarioFornecedor` só existem em instalações com integração de fornecedores. Auth path 4 (email) retorna `null` sem erro se a tabela não existir.
+- **Criptografia de senha** (`dbo.VALIDAR_CRIPT`): o auth path 5 (usuário interno) depende de [[validar-cript]], um XOR scramble reversível de 2011 — ver conexão [[connections/validar-cript-auth-dependency]].
 
 ## Diagrama — Login híbrido (frontend → backend → DB/AWS)
 
@@ -130,6 +133,7 @@ O bridge AWS em `:4306` aparece referenciado em `appsettings.json` como `AppSett
 - [[appbuilder]] — usa `LDAPAuthMiddleware` (mais restritivo)
 - [[director-web]] — usa `AuthMiddleware` (todos os caminhos)
 - [[react-tools]] — frontend AuthProvider que monta o Basic header
+- [[validar-cript]] — criptografia reversível usada pelo auth path 5 (usuário interno)
 
 ## Sources
 

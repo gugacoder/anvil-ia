@@ -4,8 +4,9 @@ aliases: [acesso-metamodel, metamodel, acesso-schema, schema-driven-ui]
 tags: [schema, processa, dbdirector, metamodelo, ui]
 sources:
   - "calendar/notes/2026-05-15.md"
+  - "calendar/notes/2026-05-17.md"
 created: 2026-05-15
-updated: 2026-05-15
+updated: 2026-05-19
 ---
 
 # Metamodelo `acesso.*`
@@ -14,7 +15,7 @@ Schema do `DBdirector` que descreve **a UI dos apps Processa como dados**, não 
 
 ## Key Points
 
-- **Tabelas-núcleo**: `TBaplicacao` (apps), `TBmodulo` (grupos de menu), `TBpagina` (entradas/rotas), `TBmodel_pagina` (template/view da página), `TBmodel_parametro` (parâmetros do template), `TBprocedure_model` (proc que popula o model).
+- **Tabelas-núcleo**: `TBaplicacao` (apps — ver [[tbaplicacao-app-registry]] para deep cross-tenant survey com 23 appKeys e 5 caminhos de resolução), `TBmodulo` (grupos de menu), `TBpagina` (entradas/rotas), `TBmodel_pagina` (template/view da página), `TBmodel_parametro` (parâmetros do template), `TBprocedure_model` (proc que popula o model).
 - **RBAC granular**: `TBpapel`, `TBfuncao`, `TBpapel_funcao_pagina_modulo`, `TBpapel_usuario_empresa`, `TBsessao` — permissões por papel × função × página × módulo × empresa.
 - **Multi-tenant nativo**: `TBconexao`, `TBconexao_usuario` — cada usuário/app pode rotear para conexão diferente. Permite Studio servir múltiplos bancos com um único processo.
 - **Dashboards declarativos**: `TBdashboard` + `TBobjetos_dashboard` — composição via objetos cadastrados, não código.
@@ -28,7 +29,7 @@ A separação `TBmodulo → TBpagina → TBmodel_pagina` permite hierarquia de m
 
 Convenção de nomenclatura (ver [[nic-sqlserver]]): prefixos `TB` (tabela), `DF` (data field/coluna), `PK`/`FK`/`UQ`/`IX` (constraints). Procedures usam padrão `verb_object[_modifier]`: `obter_*` para SELECT, `persistir_*` para INSERT/UPDATE, `atualizar_*` para UPDATE pontual, `consultar_*` para queries com filtros, `sp_*` para procs auxiliares.
 
-O metamodelo também codifica integrações cross-tenant: `TBaplicacao` com chave `portal-aws` armazena `DFendereco` e `DFdominio` do bridge AWS (ver [[processa-auth-paths]]) — apps locais consultam essa tabela para descobrir o bridge em runtime, ao invés de hard-coding. O Studio segue o mesmo padrão: lê `TBaplicacao` no boot e sabe com quem falar.
+O metamodelo também codifica integrações cross-tenant: `TBaplicacao` com chave `portal-aws` armazena `DFendereco` e `DFdominio` do bridge AWS (ver [[processa-auth-paths]]) — apps locais consultam essa tabela para descobrir o bridge em runtime, ao invés de hard-coding. O Studio segue o mesmo padrão: lê `TBaplicacao` no boot e sabe com quem falar. Um survey empírico de 97 bases `DBdirector_*` (2026-05-17) revelou que `TBaplicacao` contém 23 appKeys distintos com taxonomia core/opt-in/one-off, e que `DFchave` (não `DFid`) é o discriminador estável cross-tenant — detalhes completos em [[tbaplicacao-app-registry]].
 
 A descoberta de campos/colunas exatos do metamodelo é o eixo principal do trabalho de documentação que precede a implementação do Studio. As 50+ tabelas em `portal-director/portal.director/criacao/` precisam ser lidas individualmente para extrair: (a) campos por tabela, (b) procedures que tocam cada tabela, (c) contratos de entrada/saída das procs canônicas, (d) convenções implícitas (campos opcionais com semântica especial).
 
@@ -39,7 +40,9 @@ A descoberta de campos/colunas exatos do metamodelo é o eixo principal do traba
 - [[processa-auth-paths]] — `TBaplicacao` armazena também endereços para auth cross-tenant
 - [[react-tools]] — implementação atual do renderer que consome esse metamodelo
 - [[appbuilder]] — UI atual de cadastro do metamodelo
+- [[tbaplicacao-app-registry]] — deep cross-tenant survey de `TBaplicacao` (23 appKeys, 5 caminhos de resolução, auth-scheme switching)
 
 ## Sources
 
 - [[calendar/notes/2026-05-15.md]] — exploração de `sources/engenharia--fabrica--sql--portal-director/portal.director/criacao/` (~50 tabelas listadas) e `programacao/` (procs `obter_*`); decisão de tratar a descoberta dos contratos como frente própria do projeto Studio
+- [[calendar/notes/2026-05-17.md]] — survey cross-tenant de 97 bases revelando 23 appKeys em TBaplicacao, taxonomia core/opt-in/one-off, DFchave como discriminador estável

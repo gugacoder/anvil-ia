@@ -4,8 +4,9 @@ aliases: [react-tools, engenharia-react-tools]
 tags: [framework, processa, frontend, react, biblioteca]
 sources:
   - "calendar/notes/2026-05-15.md"
+  - "calendar/notes/2026-05-16.md"
 created: 2026-05-15
-updated: 2026-05-15
+updated: 2026-05-19
 ---
 
 # `@engenharia/react-tools`
@@ -19,6 +20,7 @@ Pacote npm interno da Processa (`http://gitlab.processa.info/engenharia/fabrica/
 - **`AuthProvider`** (em `src/contexts/AuthProvider.js`) faz Basic auth em `/api/auth` e armazena JWT em `localStorage["@director/tkn"]` + user em `@director/usr`. Sessão expira por mensagem `"Lifetime validation failed. The token is expired."` retornada pelo `Processa.Sdk` (ver [[processa-auth-paths]]).
 - **Default branch trava em 2.1.0**; as versões 3.x consumidas em produção vivem em outras branches/tags do mesmo repo. Branch policy não verificada.
 - **Componentes notáveis em `src/components/`**: `AppMain/`, `AuthRoute`, `DataGrid`, `DataGrid2`, `GenericForm/`, `GenericPage/`, `GenericPages/`, `PowerSelect3/`, `Filtro/`, `DashBoard/`, `SearchTree/`, `Notifications/`, `FileBrowser/`. Cada um é um tipo de "model" que o renderer sabe instanciar.
+- **PowerSelect: 3 versões coexistentes** (ver [[power-select-versions]]): V1 (`PowerSelect.js`, async + react-select), V2 (`PowerSelect2.js`, react-select sem fetch), V3 (`PowerSelect3/`, modal + filtro client-side). Hook `useSelectFields` (ver [[select-options-endpoint]]) encapsula a convenção de carga de opções para os 3. Nenhuma versão implementa debounce, cancel ou cache próprio.
 
 ## Details
 
@@ -35,7 +37,10 @@ A interop atual via localStorage é problemática do ponto de vista de seguranç
 - [[processa-auth-paths]] — modelo de auth implementado pelo `AuthProvider` do react-tools
 - [[appbuilder]] — consumidor do react-tools (versão 3.1.102 em 2026-05-15)
 - [[director-web]] — consumidor com a implementação mais minimalista (20 linhas)
+- [[power-select-versions]] — 3 versões coexistentes de PowerSelect descobertas em escavação F019
+- [[select-options-endpoint]] — hook `useSelectFields` que encapsula a convenção de carga de opções
 
 ## Sources
 
 - [[calendar/notes/2026-05-15.md]] — clone do repo `engenharia/fabrica/javascript/react-tools`; leitura de `AuthProvider.js`, `Login.js`, `AppMain/`; mapeamento de versões consumidas pelos 4 frontends do ecossistema
+- [[calendar/notes/2026-05-16.md]] — escavação F019: descoberta das 3 versões de PowerSelect, hook `useSelectFields`, auditoria de cache/debounce/cancel
