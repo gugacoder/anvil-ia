@@ -1,2 +1,0 @@
-[ui-tester] F020 fail: retry2 (commit 41882bd) — T1.b duracao ainda ignorada (toast success persiste >12s com focus=true); T4 dismiss() global continua no-op (1 visivel antes e depois, samples 100/300/800/1500/2500ms); T8.b a11y REGREDIU de pass para fail (role/aria-live=null em todos os toasts, provavel culpa do MutationObserver rAF batched). T1.a/T2/T3/T5/T7/T8.a passam.
-[ui-tester] F021 fail retry: M2/M5 corrigidos; M3 e M4 continuam com sm:max-w-sm (384px) em vez de lg (~576px); smith nao alterou codigo no commit 4740ef5
