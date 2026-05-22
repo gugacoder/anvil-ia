@@ -27,8 +27,15 @@ git clone http://gitlab.processa.info/engenharia/fabrica/sql/processa-adm.git   
 git clone http://gitlab.processa.info/engenharia/fabrica/sql/processa-appbuilder.git        engenharia--fabrica--sql--processa-appbuilder
 git clone http://gitlab.processa.info/qualidade/playwright/appbuilder.git                   qualidade--playwright--appbuilder
 
+# GitLab interno — template de agente AI
+git clone http://gitlab.processa.info/nic/automacao/ia.git                                   agent-template
+
 # GitHub público — harness builder para workflows de AI coding
 git clone https://github.com/coleam00/Archon.git                                            coleam00--archon
+
+# GitHub público — CodR Studio (SDK + Chat UI para openclaude)
+git clone https://github.com/codrstudio/openclaude-sdk.git                                  codrstudio/openclaude-sdk
+git clone https://github.com/codrstudio/openclaude-chat.git                                 codrstudio/openclaude-chat
 ```
 
 ## Índice
@@ -50,7 +57,10 @@ git clone https://github.com/coleam00/Archon.git                                
 | `engenharia--fabrica--sql--processa-adm/` | http://gitlab.processa.info/engenharia/fabrica/sql/processa-adm.git |
 | `engenharia--fabrica--sql--processa-appbuilder/` | http://gitlab.processa.info/engenharia/fabrica/sql/processa-appbuilder.git |
 | `qualidade--playwright--appbuilder/` | http://gitlab.processa.info/qualidade/playwright/appbuilder.git |
+| `agent-template/` | http://gitlab.processa.info/nic/automacao/ia.git |
 | `coleam00--archon/` | https://github.com/coleam00/Archon.git |
+| `codrstudio/openclaude-sdk/` | https://github.com/codrstudio/openclaude-sdk.git |
+| `codrstudio/openclaude-chat/` | https://github.com/codrstudio/openclaude-chat.git |
 
 ### Material local (versionado no próprio anvil-ia)
 
