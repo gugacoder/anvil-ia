@@ -18,6 +18,7 @@
 |---------|---------|---------------|---------|
 | [[-about]] | Contrato estrutural da base — filosofia LYT, locations, regras operacionais | atlas/maps/-about.md | 2026-05-11 |
 | [[atlas/meta/workspace-layout]] | Convenção `workspace/{project_slug}/` — pareamento code/narrative com `mind/effort/on/{slug}/` | atlas/meta/workspace-layout.md | 2026-05-15 |
+| [[atlas/maps/brands]] | MOC das marcas catalogadas (nic, director, processa) — SVGs fonte em `x/files/brands/{slug}/` light+dark, pipeline de derivação PWA | x/files/brands/ | 2026-05-22 |
 
 ### Concepts
 
