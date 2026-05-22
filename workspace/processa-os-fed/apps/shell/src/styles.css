@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+/* Fed edition — paleta esmeralda/turquesa igual ao hub.
+   Os apps federados/internos herdam essas vars via CSS cascade no DOM compartilhado. */
+:root {
+  --background: oklch(0.14 0.02 180);
+  --foreground: oklch(0.97 0 0);
+  --card: oklch(0.19 0.025 175);
+  --card-foreground: oklch(0.97 0 0);
+  --popover: oklch(0.19 0.025 175);
+  --popover-foreground: oklch(0.97 0 0);
+  --primary: oklch(0.72 0.15 170);
+  --primary-foreground: oklch(0.12 0.02 175);
+  --secondary: oklch(0.26 0.025 175);
+  --secondary-foreground: oklch(0.97 0 0);
+  --muted: oklch(0.23 0.02 175);
+  --muted-foreground: oklch(0.72 0.025 175);
+  --accent: oklch(0.32 0.045 170);
+  --accent-foreground: oklch(0.97 0 0);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.3 0.02 175);
+  --input: oklch(0.23 0.02 175);
+  --ring: oklch(0.72 0.15 170);
+  --radius: 0.625rem;
+}
+
+.light {
+  --background: oklch(0.99 0.005 175);
+  --foreground: oklch(0.18 0.02 175);
+  --card: oklch(0.97 0.01 175);
+  --card-foreground: oklch(0.18 0.02 175);
+  --popover: oklch(0.99 0.005 175);
+  --popover-foreground: oklch(0.18 0.02 175);
+  --primary: oklch(0.55 0.15 170);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.94 0.01 175);
+  --secondary-foreground: oklch(0.2 0.02 175);
+  --muted: oklch(0.94 0.01 175);
+  --muted-foreground: oklch(0.45 0.02 175);
+  --accent: oklch(0.92 0.025 170);
+  --accent-foreground: oklch(0.2 0.02 175);
+  --border: oklch(0.88 0.015 175);
+  --input: oklch(0.92 0.015 175);
+  --ring: oklch(0.55 0.15 170);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius: var(--radius);
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Wallpaper fed: igual hub (esmeralda + turquesa + ouro suave) */
+.os-wallpaper {
+  background:
+    radial-gradient(at 18% 20%, oklch(0.45 0.16 170 / 0.55), transparent 55%),
+    radial-gradient(at 82% 78%, oklch(0.55 0.18 80 / 0.4), transparent 60%),
+    radial-gradient(at 60% 30%, oklch(0.5 0.16 200 / 0.5), transparent 60%),
+    linear-gradient(155deg, oklch(0.14 0.025 180), oklch(0.1 0.02 175));
+}
+.light .os-wallpaper {
+  background:
+    radial-gradient(at 18% 20%, oklch(0.88 0.07 170 / 0.6), transparent 55%),
+    radial-gradient(at 82% 78%, oklch(0.9 0.06 80 / 0.55), transparent 60%),
+    radial-gradient(at 60% 30%, oklch(0.88 0.07 200 / 0.55), transparent 60%),
+    linear-gradient(155deg, oklch(0.95 0.015 180), oklch(0.93 0.015 175));
+}
+
+.os-glass {
+  background: color-mix(in oklch, var(--card) 70%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+}
+
+.os-window-focus { box-shadow: 0 16px 64px -16px rgb(0 0 0 / 0.6), 0 0 0 1px var(--border); }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }

@@ -1,0 +1,6 @@
+Bem-vindo ao Processa OS
+
+Este eh um arquivo real lido do filesystem do servidor pelo app Arquivos.
+Adicione mais arquivos em apps/server/storage/files/ pra ver aparecer aqui.
+
+— Anvil
