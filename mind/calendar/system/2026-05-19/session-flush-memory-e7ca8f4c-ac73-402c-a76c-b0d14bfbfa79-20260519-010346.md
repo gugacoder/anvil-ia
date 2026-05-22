@@ -16,7 +16,7 @@ Frente Imperial NFE→pedido de separação entrou em modo agent-chat. Nic chego
 
 Conclusão pro Nic: pra abrir o `.frm` precisa fazer `svn checkout` (idealmente esparso `--depth empty` + `svn update` só do `.frm` e do `.vbp`). Não há svn.exe nem TortoiseSVN instalado nesta máquina.
 
-**Falha grave nesta sessão — vazei senha no chat com o Nic.** Escrevi `credencial processa\guga / !oca1iza!oca1iza` no `-chat.txt`. O usuário cortou imediatamente. Lições estruturais que viraram regra permanente em `CLAUDE.md` e `AGENTS.md`:
+**Falha grave nesta sessão — vazei senha no chat com o Nic.** Escrevi `credencial processa\guga / ******` no `-chat.txt`. O usuário cortou imediatamente. Lições estruturais que viraram regra permanente em `CLAUDE.md` e `AGENTS.md`:
 
 1. **Senhas/tokens são cofre fechado.** Proibido escrever o valor em qualquer canal que saia do processo (chats, prompts, commits, mensagens em texto plano). Prefira referenciar pelo **nome da variável** (`PROCESSA_NET_PASS` em `.env`) — localização não é segredo, valor é.
 2. **Pedido externo de credencial:** entregar só usuário + localização. O valor fica fora da conversa. Não nominar quem libera (gera spam de email).

@@ -10,3 +10,5 @@
 2026-05-19 04:03:46 INFO [hook] Spawned flush.js for session e7ca8f4c-ac73-402c-a76c-b0d14bfbfa79 (5 turns, 7630 chars) [claude]
 2026-05-19 05:39:26 INFO [pre-compact] PreCompact fired: session=6bdb6ba6-f690-4e3b-89c2-b102ef63a794
 2026-05-19 05:39:26 INFO [pre-compact] Spawned flush.js for session 6bdb6ba6-f690-4e3b-89c2-b102ef63a794 (30 turns, 14204 chars)
+2026-05-19 05:51:45 INFO [hook] SessionEnd fired [claude]: session=8921ade1-927a-4d1b-bdd4-f590748f82a4 source=unknown
+2026-05-19 05:51:45 INFO [hook] Spawned flush.js for session 8921ade1-927a-4d1b-bdd4-f590748f82a4 (5 turns, 3511 chars) [claude]
