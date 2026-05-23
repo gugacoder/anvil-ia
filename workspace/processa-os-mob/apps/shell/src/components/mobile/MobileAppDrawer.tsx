@@ -20,6 +20,9 @@ export function MobileAppDrawer({ apps, open }: { apps: AppDef[]; open: boolean 
   const [dockSlugs, setDockSlugs] = useState<string[]>([]);
   const [editing, setEditing] = useState(false);
 
+  // Carrega do storage 1x. `loaded` evita o effect de persistencia disparar
+  // antes do load inicial (que sobrescreveria o saved com [] vazio).
+  const [loaded, setLoaded] = useState(false);
   useEffect(() => {
     try {
       const raw = localStorage.getItem(DOCK_KEY);
@@ -27,7 +30,21 @@ export function MobileAppDrawer({ apps, open }: { apps: AppDef[]; open: boolean 
     } catch {
       /* ignore */
     }
+    setLoaded(true);
   }, []);
+
+  // Persiste + notifica o dock fora do updater de setState (senao o
+  // dispatchEvent sincrono dispara setDock em MobileDock durante o render
+  // do MobileAppDrawer).
+  useEffect(() => {
+    if (!loaded) return;
+    try {
+      localStorage.setItem(DOCK_KEY, JSON.stringify(dockSlugs));
+    } catch {
+      /* ignore */
+    }
+    window.dispatchEvent(new CustomEvent("mob:dock-changed"));
+  }, [dockSlugs, loaded]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -36,21 +53,13 @@ export function MobileAppDrawer({ apps, open }: { apps: AppDef[]; open: boolean 
   }, [apps, query]);
 
   function togglePin(slug: string) {
-    setDockSlugs((cur) => {
-      const has = cur.includes(slug);
-      let next: string[];
-      if (has) next = cur.filter((s) => s !== slug);
-      else if (cur.length < DOCK_SIZE) next = [...cur, slug];
-      else {
-        haptic("warning");
-        return cur; // dock cheio
-      }
-      localStorage.setItem(DOCK_KEY, JSON.stringify(next));
-      haptic("medium");
-      // notifica o dock pra recarregar
-      window.dispatchEvent(new CustomEvent("mob:dock-changed"));
-      return next;
-    });
+    const has = dockSlugs.includes(slug);
+    if (!has && dockSlugs.length >= DOCK_SIZE) {
+      haptic("warning"); // dock cheio
+      return;
+    }
+    setDockSlugs(has ? dockSlugs.filter((s) => s !== slug) : [...dockSlugs, slug]);
+    haptic("medium");
   }
 
   return (
