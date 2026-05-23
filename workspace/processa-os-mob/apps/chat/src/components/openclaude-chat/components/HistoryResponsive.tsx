@@ -2,9 +2,10 @@ import React from "react"
 import { useMediaQuery } from "../hooks/useMediaQuery.js"
 import { HistoryDrawer, type HistoryDrawerProps } from "./HistoryDrawer.js"
 import { HistorySheet, type HistorySheetProps } from "./HistorySheet.js"
+import { useHistoryContext } from "../hooks/HistoryProvider.js"
 
 export interface HistoryResponsiveProps
-  extends Omit<HistoryDrawerProps, "maxHeight" | "contentClassName">,
+  extends Omit<HistoryDrawerProps, "maxHeight" | "contentClassName" | "open" | "onOpenChange">,
     Omit<HistorySheetProps, "side" | "width" | "contentClassName" | "open" | "onOpenChange" | keyof React.ComponentProps<"div">> {
   /**
    * Media query that decides which container renders. When it matches,
@@ -20,17 +21,22 @@ export interface HistoryResponsiveProps
   sheetWidth?: string
   /** Extra className applied to whichever container renders. */
   contentClassName?: string
+  /** Override the context-wired drawerOpen. Optional. */
+  open?: boolean
+  /** Override the context-wired setDrawerOpen. Optional. */
+  onOpenChange?: (open: boolean) => void
 }
 
 /**
  * Viewport-responsive history overlay: bottom-drawer on mobile (Vaul),
  * side-sheet on desktop (Radix Dialog). Content is `<History>` in both.
  *
- * Pattern source: kb/atlas/concepts/overlay-responsivo-container-switch.md
- * — same overlay concept, different container per viewport.
+ * Auto-wires to HistoryProvider context: reads `drawerOpen` / `setDrawerOpen`
+ * by default, falls back to provided `open` / `onOpenChange` if passed.
  *
- * Controlled-only (consumer owns `open` / `onOpenChange`). The trigger
- * lives wherever the consumer wants (breadcrumb, toolbar, FAB).
+ * Silences itself when a `<HistorySidebar>` (or any docked History) is
+ * mounted in the same provider scope — that container becomes the
+ * authoritative History surface and the overlay would just duplicate it.
  */
 export function HistoryResponsive({
   breakpoint = "(min-width: 1024px)",
@@ -43,12 +49,18 @@ export function HistoryResponsive({
   ...historyProps
 }: HistoryResponsiveProps) {
   const isDesktop = useMediaQuery(breakpoint)
+  const { drawerOpen, setDrawerOpen, dockedCount } = useHistoryContext()
+
+  if (dockedCount > 0) return null
+
+  const effectiveOpen = open ?? drawerOpen
+  const effectiveOnOpenChange = onOpenChange ?? setDrawerOpen
 
   if (isDesktop) {
     return (
       <HistorySheet
-        open={open}
-        onOpenChange={onOpenChange}
+        open={effectiveOpen}
+        onOpenChange={effectiveOnOpenChange}
         side={sheetSide}
         width={sheetWidth}
         contentClassName={contentClassName}
@@ -59,8 +71,8 @@ export function HistoryResponsive({
 
   return (
     <HistoryDrawer
-      open={open}
-      onOpenChange={onOpenChange}
+      open={effectiveOpen}
+      onOpenChange={effectiveOnOpenChange}
       maxHeight={drawerMaxHeight}
       contentClassName={contentClassName}
       {...historyProps}

@@ -7,9 +7,21 @@ export interface HistoryContextValue {
   transport?: ChatTransport
   /** Agent ID scoped to this provider — flows to transport calls. */
   agentId?: string
-  /** Sidebar open state (desktop/mobile). */
+  /** Docked sidebar visibility (HistorySidebar). Default true. */
   sidebarOpen: boolean
   setSidebarOpen: (open: boolean) => void
+  /** Overlay visibility (HistoryDrawer/HistorySheet/HistoryResponsive). Default false. */
+  drawerOpen: boolean
+  setDrawerOpen: (open: boolean) => void
+  /**
+   * Number of docked History containers currently mounted under this provider.
+   * Containers (HistorySidebar) call registerDocked() on mount and run the
+   * returned unregister on unmount. HistoryTrigger reads this to route the
+   * toggle to sidebarOpen (docked) vs drawerOpen (overlay). HistoryResponsive
+   * uses it to silence itself when a docked sibling is present.
+   */
+  dockedCount: number
+  registerDocked: () => () => void
   /**
    * Register a refresh callback (called by useHistoryData).
    * @internal — consumers should use `refresh()` instead.
@@ -33,8 +45,10 @@ export interface HistoryProviderProps {
   activeConversationId?: string | null
   /** Called when active conversation changes. */
   onActiveChange?: (id: string | null) => void
-  /** Initial sidebar state. Default: true. */
+  /** Initial docked sidebar state. Default: true. */
   defaultSidebarOpen?: boolean
+  /** Initial overlay state. Default: false. */
+  defaultDrawerOpen?: boolean
 }
 
 export function HistoryProvider({
@@ -45,9 +59,12 @@ export function HistoryProvider({
   activeConversationId: controlledId,
   onActiveChange,
   defaultSidebarOpen = true,
+  defaultDrawerOpen = false,
 }: HistoryProviderProps) {
   const [uncontrolledId, setUncontrolledId] = useState<string | null>(defaultConversationId)
   const [sidebarOpen, setSidebarOpen] = useState(defaultSidebarOpen)
+  const [drawerOpen, setDrawerOpen] = useState(defaultDrawerOpen)
+  const [dockedCount, setDockedCount] = useState(0)
   const refreshRef = useRef<(() => Promise<void>) | null>(null)
 
   const isControlled = controlledId !== undefined
@@ -60,6 +77,11 @@ export function HistoryProvider({
     },
     [isControlled, onActiveChange],
   )
+
+  const registerDocked = useCallback(() => {
+    setDockedCount((n) => n + 1)
+    return () => setDockedCount((n) => Math.max(0, n - 1))
+  }, [])
 
   const registerRefresh = useCallback((fn: () => Promise<void>) => {
     refreshRef.current = fn
@@ -78,6 +100,10 @@ export function HistoryProvider({
         agentId,
         sidebarOpen,
         setSidebarOpen,
+        drawerOpen,
+        setDrawerOpen,
+        dockedCount,
+        registerDocked,
         registerRefresh,
         refresh,
       }}
