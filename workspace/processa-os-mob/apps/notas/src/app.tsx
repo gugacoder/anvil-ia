@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { MemoryRouter, Routes, Route, useNavigate, useLocation, useParams } from "react-router-dom";
 import { Plus, Trash2, AlertCircle, ChevronLeft } from "lucide-react";
 import { api, type NoteDto } from "./api";
+import { useAppStorage } from "./pos-storage";
 
 interface AppInstanceProps {
   instanceId?: string;
@@ -37,13 +38,23 @@ function useIsNarrow(): boolean {
 }
 
 export default function App(props: AppInstanceProps = {}) {
-  const initialPath = props.initialPath ?? "/";
+  const scope = props.instanceId ?? "solo";
+  // Retoma último path conhecido por instância (sobrevive a reload em
+  // qualquer layout — não depende do shell rehidratar initialPath).
+  const [lastPath, setLastPath] = useAppStorage<string>(scope, "last-path", "/");
+  const initialPath = props.initialPath && props.initialPath !== "/" ? props.initialPath : lastPath;
+
   return (
     <MemoryRouter initialEntries={[initialPath]}>
-      <RouteSync onPathChange={props.onPathChange} />
+      <RouteSync
+        onPathChange={(p) => {
+          setLastPath(p);
+          props.onPathChange?.(p);
+        }}
+      />
       <Routes>
-        <Route path="/" element={<NotasShell activeId={null} />} />
-        <Route path="/nota/:id" element={<NotasRouteWrapper />} />
+        <Route path="/" element={<NotasShell scope={scope} activeId={null} />} />
+        <Route path="/nota/:id" element={<NotasRouteWrapper scope={scope} />} />
       </Routes>
     </MemoryRouter>
   );
@@ -57,12 +68,12 @@ function RouteSync({ onPathChange }: { onPathChange?: (p: string) => void }) {
   return null;
 }
 
-function NotasRouteWrapper() {
+function NotasRouteWrapper({ scope }: { scope: string }) {
   const { id } = useParams<{ id: string }>();
-  return <NotasShell activeId={id ?? null} />;
+  return <NotasShell scope={scope} activeId={id ?? null} />;
 }
 
-function NotasShell({ activeId }: { activeId: string | null }) {
+function NotasShell({ scope, activeId }: { scope: string; activeId: string | null }) {
   const navigate = useNavigate();
   const narrow = useIsNarrow();
   const [auth, setAuth] = useState<"loading" | "ok" | "guest">("loading");
@@ -132,6 +143,7 @@ function NotasShell({ activeId }: { activeId: string | null }) {
   if (narrow) {
     return active ? (
       <EditorView
+        scope={scope}
         note={active}
         onChange={(patch) =>
           setNotes((p) => p.map((n) => (n.id === active.id ? { ...n, ...patch } : n)))
@@ -167,6 +179,7 @@ function NotasShell({ activeId }: { activeId: string | null }) {
       <div className="flex min-w-0 flex-1 flex-col">
         {active ? (
           <EditorBody
+            scope={scope}
             note={active}
             onChange={(patch) =>
               setNotes((p) => p.map((n) => (n.id === active.id ? { ...n, ...patch } : n)))
@@ -275,11 +288,13 @@ function ListView({
 }
 
 function EditorView({
+  scope,
   note,
   onChange,
   onSave,
   onBack,
 }: {
+  scope: string;
   note: NoteDto;
   onChange: (patch: Partial<NoteDto>) => void;
   onSave: (patch: { title?: string; body?: string }) => void;
@@ -300,33 +315,57 @@ function EditorView({
           {note.title || "Sem título"}
         </span>
       </div>
-      <EditorBody note={note} onChange={onChange} onSave={onSave} />
+      <EditorBody scope={scope} note={note} onChange={onChange} onSave={onSave} />
     </div>
   );
 }
 
 function EditorBody({
+  scope,
   note,
   onChange,
   onSave,
 }: {
+  scope: string;
   note: NoteDto;
   onChange: (patch: Partial<NoteDto>) => void;
   onSave: (patch: { title?: string; body?: string }) => void;
 }) {
+  // Draft layer: o que o user digita persiste por nota mesmo antes do blur.
+  // Salva pro server no blur (como antes); ao mesmo tempo limpa o draft.
+  const draftKey = `draft.${note.id}`;
+  const [draft, setDraft] = useAppStorage<{ title?: string; body?: string }>(
+    scope,
+    draftKey,
+    {},
+  );
+  const title = draft.title ?? note.title;
+  const body = draft.body ?? note.body;
   return (
     <>
       <input
-        value={note.title}
-        onChange={(e) => onChange({ title: e.target.value })}
-        onBlur={(e) => void onSave({ title: e.target.value })}
+        value={title}
+        onChange={(e) => {
+          setDraft((d) => ({ ...d, title: e.target.value }));
+          onChange({ title: e.target.value });
+        }}
+        onBlur={(e) => {
+          void onSave({ title: e.target.value });
+          setDraft((d) => ({ ...d, title: undefined }));
+        }}
         className="border-b border-border bg-transparent px-4 py-3 text-lg font-semibold outline-none"
         placeholder="Título"
       />
       <textarea
-        value={note.body}
-        onChange={(e) => onChange({ body: e.target.value })}
-        onBlur={(e) => void onSave({ body: e.target.value })}
+        value={body}
+        onChange={(e) => {
+          setDraft((d) => ({ ...d, body: e.target.value }));
+          onChange({ body: e.target.value });
+        }}
+        onBlur={(e) => {
+          void onSave({ body: e.target.value });
+          setDraft((d) => ({ ...d, body: undefined }));
+        }}
         className="min-h-0 flex-1 resize-none bg-transparent px-4 py-3 text-sm leading-relaxed outline-none"
         placeholder="Escreva…"
       />

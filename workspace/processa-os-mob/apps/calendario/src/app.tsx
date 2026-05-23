@@ -34,11 +34,10 @@ import {
   AppInstancePropsSchema,
   type AppInstanceProps,
   type View,
-  loadPrefs,
-  savePrefs,
   resolveDateParam,
 } from "./lib/schemas";
 import { formatTitle, stepDate, toIsoParam } from "./lib/calendar";
+import { useAppStorage } from "./pos-storage";
 import { useIsNarrow } from "./lib/use-is-narrow";
 import { MonthView } from "./views/MonthView";
 import { WeekView } from "./views/WeekView";
@@ -52,38 +51,42 @@ import { AgendaView } from "./views/AgendaView";
 export default function App(rawProps: unknown = {}) {
   const parsed = AppInstancePropsSchema.safeParse(rawProps);
   const props: AppInstanceProps = parsed.success ? parsed.data : {};
-  const initialPath = computeInitialPath(props.initialPath);
+  const scope = props.instanceId ?? "solo";
+
+  // Último path conhecido (view + data). Sobrevive a reload em qualquer
+  // layout — não depende do shell rehidratar initialPath.
+  const [lastPath, setLastPath] = useAppStorage<string>(scope, "last-path", "/mes");
+  const initialPath = props.initialPath && props.initialPath !== "/" ? props.initialPath : lastPath;
 
   return (
     <MemoryRouter initialEntries={[initialPath]}>
-      <RouteSync onPathChange={props.onPathChange} />
+      <RouteSync
+        onPathChange={(p) => {
+          setLastPath(p);
+          if (typeof props.onPathChange === "function") props.onPathChange(p);
+        }}
+      />
       <Routes>
         <Route path="/" element={<Navigate to={initialPath} replace />} />
-        <Route path="/mes" element={<CalendarShell view="mes" />} />
-        <Route path="/mes/:date" element={<CalendarShell view="mes" />} />
-        <Route path="/semana" element={<CalendarShell view="semana" />} />
-        <Route path="/semana/:date" element={<CalendarShell view="semana" />} />
-        <Route path="/dia" element={<CalendarShell view="dia" />} />
-        <Route path="/dia/:date" element={<CalendarShell view="dia" />} />
-        <Route path="/ano" element={<CalendarShell view="ano" />} />
-        <Route path="/ano/:date" element={<CalendarShell view="ano" />} />
-        <Route path="/agenda" element={<CalendarShell view="agenda" />} />
+        <Route path="/mes" element={<CalendarShell scope={scope} view="mes" />} />
+        <Route path="/mes/:date" element={<CalendarShell scope={scope} view="mes" />} />
+        <Route path="/semana" element={<CalendarShell scope={scope} view="semana" />} />
+        <Route path="/semana/:date" element={<CalendarShell scope={scope} view="semana" />} />
+        <Route path="/dia" element={<CalendarShell scope={scope} view="dia" />} />
+        <Route path="/dia/:date" element={<CalendarShell scope={scope} view="dia" />} />
+        <Route path="/ano" element={<CalendarShell scope={scope} view="ano" />} />
+        <Route path="/ano/:date" element={<CalendarShell scope={scope} view="ano" />} />
+        <Route path="/agenda" element={<CalendarShell scope={scope} view="agenda" />} />
         <Route path="*" element={<Navigate to={initialPath} replace />} />
       </Routes>
     </MemoryRouter>
   );
 }
 
-function computeInitialPath(propPath: string | undefined): string {
-  if (propPath && propPath !== "/") return propPath;
-  const prefs = loadPrefs();
-  return `/${prefs.lastView}`;
-}
-
-function RouteSync({ onPathChange }: { onPathChange?: unknown }) {
+function RouteSync({ onPathChange }: { onPathChange?: (p: string) => void }) {
   const loc = useLocation();
   useEffect(() => {
-    if (typeof onPathChange === "function") onPathChange(loc.pathname);
+    onPathChange?.(loc.pathname);
   }, [loc.pathname, onPathChange]);
   return null;
 }
@@ -91,18 +94,13 @@ function RouteSync({ onPathChange }: { onPathChange?: unknown }) {
 // -----------------------------------------------------------------------------
 // Shell do calendario — header, view-switcher, animacao, gesto, bottom-nav.
 // -----------------------------------------------------------------------------
-function CalendarShell({ view }: { view: View }) {
+function CalendarShell({ scope: _scope, view }: { scope: string; view: View }) {
   const navigate = useNavigate();
   const params = useParams<{ date?: string }>();
   const narrow = useIsNarrow();
 
   const date = useMemo(() => resolveDateParam(params.date), [params.date]);
   const today = useMemo(() => new Date(), []);
-
-  // Persiste ultima view escolhida
-  useEffect(() => {
-    savePrefs({ lastView: view });
-  }, [view]);
 
   // Direcao da animacao (1 = next, -1 = prev) — controlada por nav
   const [direction, setDirection] = useState<1 | -1>(1);

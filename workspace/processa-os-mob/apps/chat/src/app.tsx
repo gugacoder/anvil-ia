@@ -20,8 +20,9 @@ import {
   HistoryTrigger,
   LocaleProvider,
   createDefaultTransport,
-  useHistoryContext,
+  useMediaQuery,
 } from "@/components/openclaude-chat";
+import { useAppStorage } from "./pos-storage";
 
 const ENDPOINT = "/so/api/v1/ai";
 const AGENT_ID = "anvil";
@@ -80,23 +81,21 @@ function ChatInstance({
 }) {
   const transport = useMemo(() => createDefaultTransport(ENDPOINT), []);
   const navigate = useNavigate();
-  // chave de sessão escopada por instância — duas janelas não brigam pelo localStorage.
-  const STORAGE_KEY = `fed.chat.session.${instanceId}`;
 
-  const [sessionId, setSessionIdState] = useState<string | null>(
-    () => sessionPath ?? localStorage.getItem(STORAGE_KEY),
+  // sessionId persistido via convenção do Processa OS:
+  // pos:state:<sub>:<instanceId>:session — limpa no logout/close automaticamente.
+  const [sessionId, setSessionIdRaw] = useAppStorage<string | null>(
+    instanceId,
+    "session",
+    sessionPath,
   );
 
   // Sincroniza estado com a rota: se a URL mudar, adota.
   useEffect(() => {
-    if (sessionPath && sessionPath !== sessionId) setSessionIdState(sessionPath);
+    if (sessionPath && sessionPath !== sessionId) setSessionIdRaw(sessionPath);
   }, [sessionPath]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Persiste a sessão por instância.
-  useEffect(() => {
-    if (sessionId) localStorage.setItem(STORAGE_KEY, sessionId);
-    else localStorage.removeItem(STORAGE_KEY);
-  }, [sessionId, STORAGE_KEY]);
+  const setSessionIdState = setSessionIdRaw;
 
   // Garante uma sessão ativa: cria uma se não houver, então navega pra rota canônica.
   useEffect(() => {
@@ -133,7 +132,6 @@ function ChatInstance({
       agentId={AGENT_ID}
       activeConversationId={sessionId}
       onActiveChange={setSessionId}
-      defaultSidebarOpen={false}
     >
       <Layout sessionId={sessionId} />
     </HistoryProvider>
@@ -141,12 +139,12 @@ function ChatInstance({
 }
 
 function Layout({ sessionId }: { sessionId: string | null }) {
-  const { sidebarOpen, setSidebarOpen } = useHistoryContext();
+  const isDesktop = useMediaQuery("(min-width: 1024px)");
   return (
     <div className="flex h-full min-h-0 gap-2 bg-background p-2">
-      <aside className="hidden lg:flex">
+      {isDesktop && (
         <HistorySidebar locale="pt-BR" className="rounded-xl bg-card shadow border-0" />
-      </aside>
+      )}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
         <ChatHeader
           leftContent={<HistoryTrigger />}
@@ -173,8 +171,6 @@ function Layout({ sessionId }: { sessionId: string | null }) {
         </div>
       </div>
       <HistoryResponsive
-        open={sidebarOpen}
-        onOpenChange={setSidebarOpen}
         locale="pt-BR"
         contentClassName="rounded-xl bg-card shadow border-0"
       />

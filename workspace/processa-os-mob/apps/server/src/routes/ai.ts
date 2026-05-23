@@ -16,6 +16,12 @@ import {
   type PersistentSession,
 } from "@codrstudio/openclaude-sdk";
 import { requireAuth } from "../lib/auth.js";
+import { zValidator, getValid } from "../lib/zod-validator.js";
+import {
+  CreateConversationBodySchema,
+  PatchConversationBodySchema,
+  SendMessageBodySchema,
+} from "../schemas/index.js";
 import { bus } from "./notifications.js";
 
 const POOL_SIZE_PER_CWD = Number(process.env.POOL_SIZE_PER_CWD ?? 1);
@@ -68,11 +74,8 @@ function bindIdleTimer(conv: ConvState) {
 export const aiRoutes = new Hono();
 aiRoutes.use("*", requireAuth);
 
-aiRoutes.post("/conversations", async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as {
-    agentId?: string;
-    noPool?: boolean;
-  };
+aiRoutes.post("/conversations", zValidator("json", CreateConversationBodySchema), async (c) => {
+  const body = getValid<typeof CreateConversationBodySchema>(c, "json");
   const cwd = resolveCwd(body.agentId);
   let conv: ConvState;
   if (body.noPool) {
@@ -135,17 +138,18 @@ aiRoutes.get("/conversations/:id", (c) => {
   return c.json({ id: v.id, title: v.title, starred: v.starred });
 });
 
-aiRoutes.patch("/conversations/:id", async (c) => {
-  const v = conversations.get(c.req.param("id"));
-  if (!v) return c.json({ error: "not_found" }, 404);
-  const body = (await c.req.json().catch(() => ({}))) as {
-    title?: string;
-    starred?: boolean;
-  };
-  if (typeof body.title === "string") v.title = body.title;
-  if (typeof body.starred === "boolean") v.starred = body.starred;
-  return c.body(null, 204);
-});
+aiRoutes.patch(
+  "/conversations/:id",
+  zValidator("json", PatchConversationBodySchema),
+  async (c) => {
+    const v = conversations.get(c.req.param("id"));
+    if (!v) return c.json({ ok: false, error: "not_found" }, 404);
+    const body = getValid<typeof PatchConversationBodySchema>(c, "json");
+    if (body.title !== undefined) v.title = body.title;
+    if (body.starred !== undefined) v.starred = body.starred;
+    return c.body(null, 204);
+  },
+);
 
 aiRoutes.delete("/conversations/:id", async (c) => {
   const v = conversations.get(c.req.param("id"));
@@ -162,7 +166,10 @@ aiRoutes.get("/conversations/:id/messages", (c) => {
   return c.json({ messages: v.messages, hasMore: false, cursor: null });
 });
 
-aiRoutes.post("/conversations/:id/messages", async (c) => {
+aiRoutes.post(
+  "/conversations/:id/messages",
+  zValidator("json", SendMessageBodySchema),
+  async (c) => {
   let conv = conversations.get(c.req.param("id"));
   const id = c.req.param("id");
 
@@ -196,9 +203,9 @@ aiRoutes.post("/conversations/:id/messages", async (c) => {
   }
   bindIdleTimer(conv);
 
-  const body = (await c.req.json().catch(() => ({}))) as { message?: string };
-  const text = (body.message ?? "").trim();
-  if (!text) return c.json({ error: "empty_message" }, 400);
+  const body = getValid<typeof SendMessageBodySchema>(c, "json");
+  const text = body.message.trim();
+  if (!text) return c.json({ ok: false, error: "empty_message" }, 400);
 
   conv.messages.push({
     type: "user",
@@ -244,7 +251,8 @@ aiRoutes.post("/conversations/:id/messages", async (c) => {
       clearInterval(ping);
     }
   });
-});
+  },
+);
 
 aiRoutes.get("/models", (c) =>
   c.json({

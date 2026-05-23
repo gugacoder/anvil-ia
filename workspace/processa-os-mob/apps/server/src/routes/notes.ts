@@ -5,6 +5,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { requireAuth, getUser } from "../lib/auth.js";
+import { zValidator, getValid } from "../lib/zod-validator.js";
+import { CreateNoteBodySchema, PatchNoteBodySchema } from "../schemas/index.js";
 import { bus } from "./notifications.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -73,12 +75,9 @@ notesRoutes.get("/", async (c) => {
   return c.json({ notes });
 });
 
-notesRoutes.post("/", async (c) => {
+notesRoutes.post("/", zValidator("json", CreateNoteBodySchema), async (c) => {
   const u = (await getUser(c))!;
-  const body = (await c.req.json().catch(() => ({}))) as {
-    title?: string;
-    body?: string;
-  };
+  const body = getValid<typeof CreateNoteBodySchema>(c, "json");
   const now = new Date().toISOString();
   const note: Note = {
     id: randomUUID(),
@@ -94,17 +93,17 @@ notesRoutes.post("/", async (c) => {
   return c.json({ note });
 });
 
-notesRoutes.patch("/:id", async (c) => {
+notesRoutes.patch("/:id", zValidator("json", PatchNoteBodySchema), async (c) => {
   const u = (await getUser(c))!;
   const id = c.req.param("id");
-  const body = (await c.req.json().catch(() => ({}))) as Partial<Note>;
+  const body = getValid<typeof PatchNoteBodySchema>(c, "json");
   const notes = await load(u.sub);
   const idx = notes.findIndex((n) => n.id === id);
-  if (idx < 0) return c.json({ error: "not_found" }, 404);
+  if (idx < 0) return c.json({ ok: false, error: "not_found" }, 404);
   const updated: Note = {
     ...notes[idx],
-    ...(typeof body.title === "string" ? { title: body.title } : {}),
-    ...(typeof body.body === "string" ? { body: body.body } : {}),
+    ...(body.title !== undefined ? { title: body.title } : {}),
+    ...(body.body !== undefined ? { body: body.body } : {}),
     updatedAt: new Date().toISOString(),
   };
   notes[idx] = updated;

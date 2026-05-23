@@ -2,21 +2,15 @@ import { Hono } from "hono";
 import { setCookie, deleteCookie } from "hono/cookie";
 import { signSession } from "../lib/jwt.js";
 import { COOKIE_NAME, initials } from "../lib/auth.js";
+import { zValidator, getValid } from "../lib/zod-validator.js";
+import { LoginBodySchema } from "../schemas/index.js";
 
 export const authRoutes = new Hono();
 
-// POST /login — qualquer user/senha sao aceitos (prototipo)
-authRoutes.post("/login", async (c) => {
-  const body = (await c.req.json().catch(() => ({}))) as {
-    username?: string;
-    password?: string;
-  };
-  const username = (body.username ?? "").trim();
-  const password = (body.password ?? "").trim();
-
-  if (!username || !password) {
-    return c.json({ error: "missing_credentials" }, 400);
-  }
+// POST /login — body validado por LoginBodySchema (username/password obrigatorios)
+authRoutes.post("/login", zValidator("json", LoginBodySchema), async (c) => {
+  const body = getValid<typeof LoginBodySchema>(c, "json");
+  const username = body.username.trim();
 
   const name = username
     .replace(/[._-]+/g, " ")
