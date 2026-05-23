@@ -1,12 +1,14 @@
 // =============================================================================
 // Bridge HTTP+SSE entre <Chat> (openclaude-chat) e openclaude-sdk.
 // Modelado em D:/nic/workspace/nic/jornada/apps/chat/src/index.ts.
-// Agente unico: anvil em D:/anvil.
+// Agente unico: anvil — raiz do proprio repo (sobe 6 niveis a partir deste arquivo).
 // =============================================================================
 
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { randomUUID } from "node:crypto";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
   createMultiSessionPool,
   createPersistentSession,
@@ -19,8 +21,13 @@ import { bus } from "./notifications.js";
 const POOL_SIZE_PER_CWD = Number(process.env.POOL_SIZE_PER_CWD ?? 1);
 const IDLE_TIMEOUT_MS = Number(process.env.IDLE_TIMEOUT_MS ?? 5 * 60_000);
 
+// __dirname = <repo>/workspace/<slug>/apps/server/src/routes
+// raiz do repo  = 6 niveis acima.
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(__dirname, "../../../../../..");
+
 const AGENTS: Record<string, { cwd: string }> = {
-  anvil: { cwd: process.env.ANVIL_CWD ?? "D:/anvil" },
+  anvil: { cwd: process.env.ANVIL_CWD ?? REPO_ROOT },
 };
 const DEFAULT_AGENT = "anvil";
 
