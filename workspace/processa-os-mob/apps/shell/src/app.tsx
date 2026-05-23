@@ -10,6 +10,7 @@ import { NotificationsProvider } from "./lib/notifications";
 import { WindowsProvider } from "./lib/windows";
 import { UserSubProvider } from "./lib/user-context";
 import { clearUser } from "./lib/app-storage";
+import { setPosRuntime } from "./lib/pos-runtime";
 import { useBreakpoint, categoryFor } from "./lib/use-breakpoint";
 import { resolveLayout } from "./lib/layout";
 
@@ -33,6 +34,10 @@ export function App() {
       setReady(true);
     });
   }, []);
+
+  useEffect(() => {
+    setPosRuntime(user?.sub ?? null);
+  }, [user]);
 
   function handleLogout() {
     if (user) clearUser(user.sub);

@@ -1,35 +1,68 @@
-// Cliente HTTP simples — todos endpoints sob /so/api/v1 e usam credentials.
+// =============================================================================
+// Cliente HTTP. Toda response passa por schema (zod) antes de virar tipo.
+// Endpoints sob /so/api/v1, credenciais incluídas.
+// =============================================================================
+
+import { z } from "zod";
+import {
+  MeResponseSchema,
+  LoginResponseSchema,
+  NotesListResponseSchema,
+  NoteResponseSchema,
+  OkResponseSchema,
+  FilesListResponseSchema,
+  FileContentResponseSchema,
+  NotificationsRecentResponseSchema,
+  safeParseWithWarn,
+} from "./schemas";
+
 const BASE = "/so/api/v1";
 
-async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
+const ErrorBodySchema = z.object({ error: z.string() }).partial();
+
+async function jsonFetch<S extends z.ZodType>(
+  schema: S,
+  context: string,
+  path: string,
+  init?: RequestInit,
+): Promise<z.infer<S>> {
   const r = await fetch(`${BASE}${path}`, {
     credentials: "include",
     headers: { "Content-Type": "application/json", ...(init?.headers ?? {}) },
     ...init,
   });
   if (!r.ok) {
-    const err = await r.json().catch(() => ({ error: r.statusText }));
-    throw new Error(err.error ?? `HTTP ${r.status}`);
+    const rawErr = await r.json().catch(() => null);
+    const errParsed = ErrorBodySchema.safeParse(rawErr);
+    const msg = errParsed.success && errParsed.data.error ? errParsed.data.error : `HTTP ${r.status}`;
+    throw new Error(msg);
   }
-  return (await r.json()) as T;
+  const raw = await r.json().catch(() => null);
+  const parsed = schema.safeParse(raw);
+  if (!parsed.success) {
+    console.warn(`[api:${context}] resposta invalida`, {
+      error: parsed.error.issues,
+      path,
+      rawSample: JSON.stringify(raw).slice(0, 200),
+    });
+    throw new Error(`Resposta invalida de ${path}`);
+  }
+  return parsed.data;
 }
 
-export interface User {
-  sub: string;
-  name: string;
-  avatar: string;
-}
+// Re-export dos tipos a partir do schema central pra manter compat
+export type { User, NoteDto, FileItem, NotifDto } from "./schemas";
 
 export const api = {
   endpoint: BASE,
 
-  async me(): Promise<User | null> {
-    const r = await jsonFetch<{ user: User | null }>("/me");
+  async me() {
+    const r = await jsonFetch(MeResponseSchema, "me", "/me");
     return r.user;
   },
 
-  async login(username: string, password: string): Promise<User> {
-    const r = await jsonFetch<{ user: User }>("/auth/login", {
+  async login(username: string, password: string) {
+    const r = await jsonFetch(LoginResponseSchema, "login", "/auth/login", {
       method: "POST",
       body: JSON.stringify({ username, password }),
     });
@@ -37,57 +70,55 @@ export const api = {
   },
 
   async logout(): Promise<void> {
-    await jsonFetch("/auth/logout", { method: "POST" });
+    await jsonFetch(OkResponseSchema, "logout", "/auth/logout", { method: "POST" });
   },
 
   notes: {
-    list: () => jsonFetch<{ notes: NoteDto[] }>("/notes").then((r) => r.notes),
-    create: (title: string, body: string) =>
-      jsonFetch<{ note: NoteDto }>("/notes", {
+    async list() {
+      const r = await jsonFetch(NotesListResponseSchema, "notes.list", "/notes");
+      return r.notes;
+    },
+    async create(title: string, body: string) {
+      const r = await jsonFetch(NoteResponseSchema, "notes.create", "/notes", {
         method: "POST",
         body: JSON.stringify({ title, body }),
-      }).then((r) => r.note),
-    update: (id: string, patch: { title?: string; body?: string }) =>
-      jsonFetch<{ note: NoteDto }>(`/notes/${id}`, {
+      });
+      return r.note;
+    },
+    async update(id: string, patch: { title?: string; body?: string }) {
+      const r = await jsonFetch(NoteResponseSchema, "notes.update", `/notes/${id}`, {
         method: "PATCH",
         body: JSON.stringify(patch),
-      }).then((r) => r.note),
-    remove: (id: string) =>
-      jsonFetch<{ ok: true }>(`/notes/${id}`, { method: "DELETE" }),
+      });
+      return r.note;
+    },
+    async remove(id: string) {
+      return jsonFetch(OkResponseSchema, "notes.remove", `/notes/${id}`, { method: "DELETE" });
+    },
   },
 
   files: {
     list: (p = "") =>
-      jsonFetch<{ path: string; items: FileItem[] }>(`/files?path=${encodeURIComponent(p)}`),
+      jsonFetch(FilesListResponseSchema, "files.list", `/files?path=${encodeURIComponent(p)}`),
     content: (p: string) =>
-      jsonFetch<{ path: string; text: string }>(`/files/content?path=${encodeURIComponent(p)}`),
+      jsonFetch(
+        FileContentResponseSchema,
+        "files.content",
+        `/files/content?path=${encodeURIComponent(p)}`,
+      ),
   },
 
   notifications: {
-    recent: () =>
-      jsonFetch<{ items: NotifDto[] }>("/notifications/recent").then((r) => r.items),
+    async recent() {
+      const r = await jsonFetch(
+        NotificationsRecentResponseSchema,
+        "notifications.recent",
+        "/notifications/recent",
+      );
+      return r.items;
+    },
   },
 };
 
-export interface NoteDto {
-  id: string;
-  title: string;
-  body: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface FileItem {
-  name: string;
-  dir: boolean;
-  size: number;
-  modifiedAt: string;
-}
-
-export interface NotifDto {
-  id: string;
-  kind: "system" | "chat" | "note" | "file" | "info";
-  title: string;
-  body: string;
-  createdAt: string;
-}
+// Silence unused import warning if safeParseWithWarn nao for usado diretamente aqui
+void safeParseWithWarn;

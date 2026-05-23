@@ -1,9 +1,10 @@
-import { Bell, LogOut, Moon, Sun, ChevronDown, MonitorCog, Palette, Check } from "lucide-react";
+import { Bell, LogOut, Moon, Sun, ChevronDown, MonitorCog, Palette, Check, Calendar } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { ClockLabel } from "./Clock";
 import { useTheme, type ThemeMode } from "../lib/theme";
 import { useNotifications } from "../lib/notifications";
-import { useWindows } from "../lib/windows";
+import { useWindows, WindowTitleMenu, WindowControls, isNegotiated } from "../lib/windows";
 import { useApps } from "../lib/use-apps";
 import type { User } from "../lib/api";
 
@@ -16,10 +17,13 @@ interface Props {
 export function TopBar({ user, onLogout, onOpenNotifications }: Props) {
   const { mode, resolvedTheme, setMode } = useTheme();
   const { unread } = useNotifications();
-  const { openNew } = useWindows();
+  const { openNew, focus, windows, activeId } = useWindows();
   const { apps } = useApps();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
+
+  // Janela "negociada": maximizada + em foco. Sua titlebar migra pra cá.
+  const negotiated = windows.find((w) => isNegotiated(w, activeId)) ?? null;
 
   useEffect(() => {
     function onClick() {
@@ -43,13 +47,67 @@ export function TopBar({ user, onLogout, onOpenNotifications }: Props) {
       className="os-glass absolute top-2 right-2 left-2 z-[9999] flex h-9 items-center justify-between rounded-full px-3 text-xs"
       style={{ height: 36 }}
     >
-      <div className="flex items-center gap-3 text-muted-foreground">
-        <span className="font-semibold text-foreground">Processa OS</span>
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <button
+          type="button"
+          className="flex items-center gap-1 rounded-md px-1.5 py-1 hover:bg-accent"
+          title="Processa OS"
+          aria-label="Processa OS"
+        >
+          <span className="font-semibold text-foreground">Processa OS</span>
+          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+        </button>
+        <AnimatePresence initial={false}>
+          {negotiated && (
+            <motion.div
+              key="negotiated-title"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+            >
+              <WindowTitleMenu win={negotiated} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-      <div className="absolute left-1/2 -translate-x-1/2 text-muted-foreground">
-        <ClockLabel />
+      <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 text-muted-foreground">
+        <button
+          type="button"
+          onClick={() => {
+            const cal = apps.find((a) => a.id === "calendario");
+            if (!cal) return;
+            const existing = windows
+              .filter((w) => w.appId === "calendario")
+              .sort((a, b) => b.z - a.z);
+            if (existing.length > 0) focus(existing[0].id);
+            else openNew(cal);
+          }}
+          title="Abrir Calendário"
+          aria-label="Abrir Calendário"
+          className="group pointer-events-auto flex items-center gap-1 rounded-md px-1.5 py-1 text-muted-foreground hover:bg-accent hover:text-foreground"
+        >
+          <span className="hidden h-4 w-4 place-items-center group-hover:grid">
+            <Calendar className="h-3.5 w-3.5" />
+          </span>
+          <ClockLabel />
+        </button>
       </div>
       <div className="flex items-center gap-1">
+        <AnimatePresence initial={false}>
+          {negotiated && (
+            <motion.div
+              key="negotiated-ctrls"
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="mr-2 flex items-center"
+            >
+              <WindowControls win={negotiated} />
+            </motion.div>
+          )}
+        </AnimatePresence>
         <div className="relative">
           <button
             type="button"

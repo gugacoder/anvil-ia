@@ -18,16 +18,12 @@ import {
 import type { AppDef } from "../apps/registry";
 import { clearScope, loadJSON, saveJSON, shellKey } from "./app-storage";
 import { useUserSub } from "./user-context";
+import { PersistedWorkspaceSchema, type PersistedWorkspace } from "./schemas";
 
 export interface WorkspaceOpenApp {
   appId: string;
   app: AppDef;
   openedAt: number;
-}
-
-interface PersistedWorkspace {
-  open: { appId: string; openedAt: number }[];
-  currentId: string | null;
 }
 
 interface Ctx {
@@ -76,7 +72,11 @@ export function WorkspaceStateProvider({ children }: { children: ReactNode }) {
 
   const persisted = useMemo(
     () =>
-      loadJSON<PersistedWorkspace>(fullKey, { open: [], currentId: null }),
+      loadJSON<PersistedWorkspace>(
+        fullKey,
+        { open: [], currentId: null },
+        PersistedWorkspaceSchema,
+      ),
     [fullKey],
   );
 

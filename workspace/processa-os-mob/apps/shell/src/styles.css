@@ -191,3 +191,6 @@ body {
 }
 .os-jiggle { animation: jiggle 0.22s ease-in-out infinite; transform-origin: center; }
 .os-jiggle:nth-child(odd) { animation-delay: -0.11s; }
+
+/* Dock scroll — esconder scrollbar mantendo scroll funcional (overflow-x: auto) */
+.dock-scroll::-webkit-scrollbar { display: none; }

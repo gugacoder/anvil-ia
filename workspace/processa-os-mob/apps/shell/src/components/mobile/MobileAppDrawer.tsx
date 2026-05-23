@@ -8,14 +8,17 @@ import { useMemo, useState, useEffect } from "react";
 import { Search, X, Home } from "lucide-react";
 import type { AppDef } from "../../apps/registry";
 import { useMobState } from "../../lib/mob-state";
+import { useMobileAppStatus, type AppStatus } from "../../lib/use-app-status";
 import { useLongPress } from "../../lib/use-long-press";
 import { haptic } from "../../lib/haptics";
+import { AppStatusIndicator } from "../AppStatusIndicator";
 
 const DOCK_KEY = "mob.dock.v1";
 const DOCK_SIZE = 4;
 
 export function MobileAppDrawer({ apps, open }: { apps: AppDef[]; open: boolean }) {
   const { launchApp, closeDrawer, goHome } = useMobState();
+  const { status: appStatus } = useMobileAppStatus();
   const [query, setQuery] = useState("");
   const [dockSlugs, setDockSlugs] = useState<string[]>([]);
   const [editing, setEditing] = useState(false);
@@ -130,6 +133,7 @@ export function MobileAppDrawer({ apps, open }: { apps: AppDef[]; open: boolean 
               app={app}
               pinned={dockSlugs.includes(app.id)}
               editing={editing}
+              status={appStatus.get(app.id)}
               onLaunch={() => {
                 haptic("light");
                 launchApp(app);
@@ -175,12 +179,14 @@ function DrawerIcon({
   app,
   pinned,
   editing,
+  status,
   onLaunch,
   onTogglePin,
 }: {
   app: AppDef;
   pinned: boolean;
   editing: boolean;
+  status: AppStatus | undefined;
   onLaunch: () => void;
   onTogglePin: () => void;
 }) {
@@ -212,6 +218,7 @@ function DrawerIcon({
             ★
           </span>
         )}
+        <AppStatusIndicator status={status} />
       </span>
       <span className="max-w-[72px] truncate text-[11px] font-medium text-foreground">
         {app.label}

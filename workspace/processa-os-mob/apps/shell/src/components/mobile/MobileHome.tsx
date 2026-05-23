@@ -7,6 +7,7 @@
 import { motion } from "framer-motion";
 import { useMobState } from "../../lib/mob-state";
 import { useApps } from "../../lib/use-apps";
+import { useMobileAppStatus } from "../../lib/use-app-status";
 import { useNow } from "../Clock";
 import type { AppDef } from "../../apps/registry";
 import { haptic } from "../../lib/haptics";
@@ -53,6 +54,7 @@ function HomeClockWidget() {
 }
 
 function AppGrid({ apps, onLaunch }: { apps: AppDef[]; onLaunch: (a: AppDef) => void }) {
+  const { status } = useMobileAppStatus();
   if (!apps.length) return null;
   return (
     <motion.div
@@ -62,7 +64,13 @@ function AppGrid({ apps, onLaunch }: { apps: AppDef[]; onLaunch: (a: AppDef) => 
       className="mt-10 grid w-full max-w-md grid-cols-4 gap-x-4 gap-y-6 px-5"
     >
       {apps.map((app) => (
-        <HomeAppIcon key={app.id} app={app} size="lg" onClick={() => onLaunch(app)} />
+        <HomeAppIcon
+          key={app.id}
+          app={app}
+          size="lg"
+          status={status.get(app.id)}
+          onClick={() => onLaunch(app)}
+        />
       ))}
     </motion.div>
   );

@@ -32,6 +32,7 @@ import { useApps } from "../../lib/use-apps";
 import { useNotifications } from "../../lib/notifications";
 import { useTheme, type ThemeMode } from "../../lib/theme";
 import { useWorkspaceState, WorkspaceStateProvider } from "../../lib/workspace-state";
+import { useWorkspaceAppStatus } from "../../lib/use-app-status";
 import { api, type User } from "../../lib/api";
 import type { AppDef } from "../../apps/registry";
 import { NotificationCenter, ToastStack } from "../NotificationCenter";
@@ -160,7 +161,9 @@ function Brand({ collapsed }: { collapsed: boolean }) {
 
 function SidebarAppItem({ app, collapsed }: { app: AppDef; collapsed: boolean }) {
   const { currentId, launchApp } = useWorkspaceState();
+  const { status } = useWorkspaceAppStatus();
   const active = currentId === app.id;
+  const itemStatus = status.get(app.id);
   const Icon = app.Icon;
   return (
     <button
@@ -175,7 +178,12 @@ function SidebarAppItem({ app, collapsed }: { app: AppDef; collapsed: boolean })
     >
       <Icon className="h-5 w-5 shrink-0" strokeWidth={1.9} />
       {!collapsed && <span className="truncate">{app.label}</span>}
-      {active && !collapsed && <span className="ml-auto h-2 w-2 rounded-full bg-primary" />}
+      {!collapsed && itemStatus === "foreground" && (
+        <span className="ml-auto h-2 w-2 rounded-full bg-primary" />
+      )}
+      {!collapsed && itemStatus === "background" && (
+        <span className="ml-auto h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+      )}
     </button>
   );
 }

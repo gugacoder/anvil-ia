@@ -13,7 +13,8 @@ import {
   type ReactNode,
 } from "react";
 
-export type ColorTheme = "noite" | "floresta" | "brasa" | "lavanda";
+import { ColorThemeSchema, type ColorTheme } from "./schemas";
+export type { ColorTheme };
 
 export interface ColorThemeDef {
   key: ColorTheme;
@@ -43,8 +44,14 @@ const ColorThemeCtx = createContext<Ctx | null>(null);
 
 function readTheme(): ColorTheme {
   try {
-    const v = localStorage.getItem(STORAGE_KEY) as ColorTheme | null;
-    if (v && VALID_KEYS.includes(v)) return v;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw == null) return DEFAULT_THEME;
+    const parsed = ColorThemeSchema.safeParse(raw);
+    if (parsed.success) return parsed.data;
+    console.warn(`[storage:${STORAGE_KEY}] valor invalido, usando default`, {
+      error: parsed.error.issues,
+      raw,
+    });
   } catch {
     /* ignore */
   }

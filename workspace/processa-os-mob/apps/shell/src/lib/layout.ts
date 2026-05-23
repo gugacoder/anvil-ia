@@ -11,17 +11,20 @@
 //   - Lista com 1 item = trava (user nao pode escolher).
 //   - Lista com 2 itens = ambos disponiveis, user pode trocar.
 //
-// Validacao manual em TS por enquanto. Round dedicado a zod refatora depois.
+// Validação via zod nos schemas centrais — toda fronteira passa por safeParse.
 // =============================================================================
 
 import type { LayoutCategory } from "./use-breakpoint";
+import {
+  ShellKindSchema,
+  LayoutListSchema,
+  type ShellKind,
+  type LayoutList,
+} from "./schemas";
 
-/** Tipos de shell renderizaveis em desktop/tablet-grande/tv. Mobile fica fora. */
-export type ShellKind = "windowed" | "workspace";
+export type { ShellKind };
 
-const VALID_SHELLS: readonly ShellKind[] = ["windowed", "workspace"] as const;
-
-const DEFAULTS: Record<LayoutCategory, ShellKind[]> = {
+const DEFAULTS: Record<LayoutCategory, LayoutList> = {
   tablet: ["workspace", "windowed"],
   desktop: ["windowed", "workspace"],
   tv: ["windowed", "workspace"],
@@ -29,26 +32,23 @@ const DEFAULTS: Record<LayoutCategory, ShellKind[]> = {
 
 const STORAGE_KEY_PREFIX = "os.layout-";
 
-function isShellKind(value: unknown): value is ShellKind {
-  return typeof value === "string" && (VALID_SHELLS as readonly string[]).includes(value);
-}
-
-/** Parseia CSV vindo de env. Devolve array valido ou null se invalido/vazio. */
-export function parseLayoutCSV(raw: string | undefined | null): ShellKind[] | null {
+/** Parseia CSV vindo de env. Devolve lista valida ou null se invalida/vazia. */
+export function parseLayoutCSV(raw: string | undefined | null): LayoutList | null {
   if (!raw) return null;
   const parts = raw
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter((s) => s.length > 0);
-  if (parts.length === 0 || parts.length > 2) return null;
-  if (!parts.every(isShellKind)) return null;
-  const deduped = Array.from(new Set(parts)) as ShellKind[];
-  if (deduped.length !== parts.length) return null; // duplicatas
-  return deduped;
+  const result = LayoutListSchema.safeParse(parts);
+  if (!result.success) {
+    console.warn("[layout:env] CSV invalido", { raw, error: result.error.issues });
+    return null;
+  }
+  return result.data;
 }
 
 /** Le a variavel de env pra uma categoria. Vite expoe via import.meta.env. */
-export function readEnvLayout(category: LayoutCategory): ShellKind[] | null {
+export function readEnvLayout(category: LayoutCategory): LayoutList | null {
   const meta = import.meta as ImportMeta & { env?: Record<string, string | undefined> };
   const key = `VITE_LAYOUT_${category.toUpperCase()}`;
   return parseLayoutCSV(meta.env?.[key]);
@@ -58,7 +58,16 @@ export function readEnvLayout(category: LayoutCategory): ShellKind[] | null {
 export function readUserPref(category: LayoutCategory): ShellKind | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_PREFIX + category);
-    return isShellKind(raw) ? raw : null;
+    if (raw == null) return null;
+    const parsed = ShellKindSchema.safeParse(raw);
+    if (!parsed.success) {
+      console.warn(`[layout:pref:${category}] valor invalido, ignorando`, {
+        raw,
+        error: parsed.error.issues,
+      });
+      return null;
+    }
+    return parsed.data;
   } catch {
     return null;
   }
@@ -81,7 +90,7 @@ export interface ResolvedLayout {
   /** Shell a renderizar. */
   shell: ShellKind;
   /** Lista de shells disponiveis pra o user trocar entre eles. */
-  available: ShellKind[];
+  available: LayoutList;
   /** True se a escolha veio do env (trava — UI nao deve oferecer trocar). */
   locked: boolean;
   /** True se a escolha veio do user (UI mostra "voltar ao padrao"). */
@@ -95,7 +104,7 @@ export function resolveLayout(category: LayoutCategory): ResolvedLayout {
   const envList = readEnvLayout(category);
   const userPref = readUserPref(category);
 
-  // Env presente: trava.
+  // Env presente com 1 item: trava.
   if (envList && envList.length === 1) {
     return {
       shell: envList[0],
@@ -116,7 +125,7 @@ export function resolveLayout(category: LayoutCategory): ResolvedLayout {
       shell: userPref,
       available,
       locked: false,
-      fromUser: userPref !== defaultShell ? true : false,
+      fromUser: userPref !== defaultShell,
       defaultShell,
     };
   }

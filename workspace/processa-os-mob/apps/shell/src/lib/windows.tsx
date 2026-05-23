@@ -62,6 +62,7 @@ interface Ctx {
   closeAll: (appId: string) => void;
   focus: (id: string) => void;
   minimize: (id: string) => void;
+  minimizeAll: () => void;
   toggleMaximize: (id: string) => void;
   move: (id: string, x: number, y: number) => void;
   resize: (id: string, w: number, h: number) => void;
@@ -300,6 +301,12 @@ export function WindowsProvider({ children }: { children: ReactNode }) {
     setWindows((prev) => prev.map((w) => (w.id === id ? { ...w, minimized: true } : w)));
   }, []);
 
+  const minimizeAll = useCallback(() => {
+    setWindows((prev) =>
+      prev.every((w) => w.minimized) ? prev : prev.map((w) => ({ ...w, minimized: true })),
+    );
+  }, []);
+
   const toggleMaximize = useCallback((id: string) => {
     setWindows((prev) =>
       prev.map((w) => {
@@ -307,8 +314,11 @@ export function WindowsProvider({ children }: { children: ReactNode }) {
         if (w.maximized && w.prev) {
           return { ...w, ...w.prev, maximized: false, prev: undefined };
         }
+        // Janela maximizada vai até o rodapé (passa atrás do filete/dock).
+        // O respiro horizontal pro filete é dado pelo padding interno do
+        // conteúdo, não pela altura da janela.
         const vw = window.innerWidth;
-        const vh = window.innerHeight - TOP_BAR - DOCK_RESERVED;
+        const vh = window.innerHeight - TOP_BAR;
         return {
           ...w,
           prev: { x: w.x, y: w.y, w: w.w, h: w.h },
@@ -390,6 +400,7 @@ export function WindowsProvider({ children }: { children: ReactNode }) {
       closeAll,
       focus,
       minimize,
+      minimizeAll,
       toggleMaximize,
       move,
       resize,
@@ -407,6 +418,7 @@ export function WindowsProvider({ children }: { children: ReactNode }) {
       closeAll,
       focus,
       minimize,
+      minimizeAll,
       toggleMaximize,
       move,
       resize,
@@ -429,24 +441,31 @@ export function useWindows() {
 // -----------------------------------------------------------------------------
 // <WindowFrame> — visual chrome + interactions
 // -----------------------------------------------------------------------------
+/**
+ * Quando a janela está maximizada E em foco, ela "negocia" sua chrome com a
+ * topbar do SO: a titlebar da janela desaparece e o título + window controls
+ * passam a viver na topbar. Perdeu foco (ou foi restaurada), volta a chrome.
+ */
+export function isNegotiated(win: WinState, activeId: string | null): boolean {
+  return win.maximized && !win.minimized && win.id === activeId;
+}
+
 export function WindowFrame({ win }: { win: WinState }) {
   const {
     focus,
-    close,
-    minimize,
-    toggleMaximize,
     move,
     resize,
     activeId,
-    openNew,
-    duplicate,
+    toggleMaximize,
     setCurrentPath,
     setDynamicTitle,
   } = useWindows();
   const isActive = activeId === win.id;
+  // Maximizada perde titlebar permanentemente (independente de foco). A topbar
+  // assume os controles só quando a janela é a referência (em foco).
+  const titlebarHidden = win.maximized;
   const startDrag = useRef<{ mx: number; my: number; wx: number; wy: number } | null>(null);
   const startResize = useRef<{ mx: number; my: number; w: number; h: number } | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
     function onMove(e: MouseEvent) {
@@ -472,15 +491,6 @@ export function WindowFrame({ win }: { win: WinState }) {
     };
   }, [win.id, move, resize]);
 
-  useEffect(() => {
-    if (!menuOpen) return;
-    function onClick() {
-      setMenuOpen(false);
-    }
-    window.addEventListener("click", onClick);
-    return () => window.removeEventListener("click", onClick);
-  }, [menuOpen]);
-
   // Renderiza o app uma vez, memo por id+initialPath — preserva estado entre re-renders.
   const appProps: AppInstanceProps = useMemo(
     () => ({
@@ -493,8 +503,6 @@ export function WindowFrame({ win }: { win: WinState }) {
     [win.id, win.initialPath, setCurrentPath, setDynamicTitle],
   );
   const content = useMemo(() => win.app.render(appProps), [win.app, appProps]);
-
-  const isMulti = !!win.app.multi;
 
   return (
     <div
@@ -513,99 +521,27 @@ export function WindowFrame({ win }: { win: WinState }) {
       aria-hidden={win.minimized}
       onMouseDown={() => focus(win.id)}
     >
+      {!titlebarHidden && (
+        <div
+          className="flex h-10 shrink-0 items-center justify-between border-b border-border/60 px-2 select-none"
+          onMouseDown={(e) => {
+            if ((e.target as HTMLElement).closest("button")) return;
+            startDrag.current = { mx: e.clientX, my: e.clientY, wx: win.x, wy: win.y };
+            focus(win.id);
+          }}
+          onDoubleClick={() => toggleMaximize(win.id)}
+        >
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <WindowTitleMenu win={win} />
+          </div>
+          <WindowControls win={win} />
+        </div>
+      )}
       <div
-        className="flex h-10 shrink-0 items-center justify-between border-b border-border/60 px-2 select-none"
-        onMouseDown={(e) => {
-          if ((e.target as HTMLElement).closest("button")) return;
-          startDrag.current = { mx: e.clientX, my: e.clientY, wx: win.x, wy: win.y };
-          focus(win.id);
-        }}
-        onDoubleClick={() => toggleMaximize(win.id)}
+        className={`min-h-0 flex-1 overflow-hidden ${win.maximized ? "pb-8" : ""}`}
       >
-        <div className="relative flex items-center gap-2 text-sm font-medium">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              focus(win.id);
-              setMenuOpen((o) => !o);
-            }}
-            title="Menu da janela"
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            className="group flex items-center gap-1 rounded-md px-1.5 py-1 text-primary hover:bg-accent"
-          >
-            <span className="grid h-4 w-4 place-items-center">
-              {/* ícone do app some no hover; dá lugar ao chevron */}
-              <span className="block group-hover:hidden">{win.app.Icon ? <win.app.Icon className="h-4 w-4" /> : null}</span>
-              <span className="hidden group-hover:block">
-                <ChevronGlyph />
-              </span>
-            </span>
-            <span className="text-foreground">{win.title}</span>
-          </button>
-          {menuOpen && (
-            <div
-              role="menu"
-              onClick={(e) => e.stopPropagation()}
-              className="os-glass absolute top-full left-0 z-[10000] mt-1 w-52 rounded-xl p-1 text-sm shadow-xl"
-            >
-              {isMulti && (
-                <>
-                  <MenuItem
-                    label="Nova janela"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      openNew(win.app);
-                    }}
-                  />
-                  <MenuItem
-                    label="Duplicar janela"
-                    onClick={() => {
-                      setMenuOpen(false);
-                      duplicate(win.id);
-                    }}
-                  />
-                  <MenuDivider />
-                </>
-              )}
-              <MenuItem
-                label="Minimizar"
-                onClick={() => {
-                  setMenuOpen(false);
-                  minimize(win.id);
-                }}
-              />
-              <MenuItem
-                label={win.maximized ? "Restaurar" : "Maximizar"}
-                onClick={() => {
-                  setMenuOpen(false);
-                  toggleMaximize(win.id);
-                }}
-              />
-              <MenuDivider />
-              <MenuItem
-                label="Fechar"
-                tone="danger"
-                onClick={() => {
-                  setMenuOpen(false);
-                  close(win.id);
-                }}
-              />
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-1 pr-1">
-          <WinButton onClick={() => minimize(win.id)} title="Minimizar" color="bg-amber-400" />
-          <WinButton
-            onClick={() => toggleMaximize(win.id)}
-            title={win.maximized ? "Restaurar" : "Maximizar"}
-            color="bg-emerald-400"
-          />
-          <WinButton onClick={() => close(win.id)} title="Fechar" color="bg-rose-500" />
-        </div>
+        {content}
       </div>
-      <div className="min-h-0 flex-1 overflow-hidden">{content}</div>
       {!win.maximized && (
         <div
           className="absolute right-0 bottom-0 h-4 w-4 cursor-se-resize"
@@ -616,6 +552,118 @@ export function WindowFrame({ win }: { win: WinState }) {
           }}
         />
       )}
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// <WindowTitleMenu> + <WindowControls> — usados na titlebar da janela e na
+// topbar quando a janela está negociada.
+// -----------------------------------------------------------------------------
+export function WindowTitleMenu({ win }: { win: WinState }) {
+  const { focus, close, minimize, toggleMaximize, openNew, duplicate } = useWindows();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onClick() {
+      setMenuOpen(false);
+    }
+    window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
+  }, [menuOpen]);
+
+  const isMulti = !!win.app.multi;
+  const Icon = win.app.Icon;
+
+  return (
+    <div className="relative flex items-center">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          focus(win.id);
+          setMenuOpen((o) => !o);
+        }}
+        title="Menu da janela"
+        aria-haspopup="menu"
+        aria-expanded={menuOpen}
+        className="group flex items-center gap-1 rounded-md px-1.5 py-1 text-primary hover:bg-accent"
+      >
+        <span className="grid h-4 w-4 place-items-center">
+          {/* ícone do app some no hover; dá lugar ao chevron */}
+          <span className="block group-hover:hidden">{Icon ? <Icon className="h-4 w-4" /> : null}</span>
+          <span className="hidden group-hover:block">
+            <ChevronGlyph />
+          </span>
+        </span>
+        <span className="text-foreground">{win.title}</span>
+      </button>
+      {menuOpen && (
+        <div
+          role="menu"
+          onClick={(e) => e.stopPropagation()}
+          className="os-glass absolute top-full left-0 z-[10000] mt-1 w-52 rounded-xl p-1 text-sm shadow-xl"
+        >
+          {isMulti && (
+            <>
+              <MenuItem
+                label="Nova janela"
+                onClick={() => {
+                  setMenuOpen(false);
+                  openNew(win.app);
+                }}
+              />
+              <MenuItem
+                label="Duplicar janela"
+                onClick={() => {
+                  setMenuOpen(false);
+                  duplicate(win.id);
+                }}
+              />
+              <MenuDivider />
+            </>
+          )}
+          <MenuItem
+            label="Minimizar"
+            onClick={() => {
+              setMenuOpen(false);
+              minimize(win.id);
+            }}
+          />
+          <MenuItem
+            label={win.maximized ? "Restaurar" : "Maximizar"}
+            onClick={() => {
+              setMenuOpen(false);
+              toggleMaximize(win.id);
+            }}
+          />
+          <MenuDivider />
+          <MenuItem
+            label="Fechar"
+            tone="danger"
+            onClick={() => {
+              setMenuOpen(false);
+              close(win.id);
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function WindowControls({ win }: { win: WinState }) {
+  const { close, minimize, toggleMaximize } = useWindows();
+  return (
+    <div className="flex items-center gap-1.5 pr-1">
+      <WinButton onClick={() => minimize(win.id)} title="Minimizar" color="bg-amber-400" />
+      <WinButton
+        onClick={() => toggleMaximize(win.id)}
+        title={win.maximized ? "Restaurar" : "Maximizar"}
+        color="bg-emerald-400"
+      />
+      <WinButton onClick={() => close(win.id)} title="Fechar" color="bg-rose-500" />
     </div>
   );
 }
@@ -669,7 +717,10 @@ function WinButton({
       type="button"
       onClick={onClick}
       title={title}
-      className={`h-3.5 w-3.5 rounded-full ${color} transition-opacity hover:opacity-80`}
-    />
+      aria-label={title}
+      className="grid h-6 w-6 place-items-center rounded-md transition-colors hover:bg-foreground/8"
+    >
+      <span aria-hidden className={`h-3 w-3 rounded-full ${color} transition-opacity`} />
+    </button>
   );
 }

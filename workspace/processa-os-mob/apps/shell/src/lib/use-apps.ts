@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { type AppDef, type AppManifest, manifestToDef } from "../apps/registry";
+import { type AppDef, manifestToDef } from "../apps/registry";
+import { AppsListResponseSchema, safeParseWithWarn } from "./schemas";
 
 export function useApps(): { apps: AppDef[]; loading: boolean; error: string | null } {
   const [apps, setApps] = useState<AppDef[]>([]);
@@ -9,10 +10,14 @@ export function useApps(): { apps: AppDef[]; loading: boolean; error: string | n
   useEffect(() => {
     let cancelled = false;
     fetch("/so/api/v1/apps", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: { apps: AppManifest[] }) => {
+      .then(async (r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((raw: unknown) => {
         if (cancelled) return;
-        setApps(d.apps.map(manifestToDef));
+        const parsed = safeParseWithWarn(AppsListResponseSchema, raw, "apps.list", { apps: [] });
+        setApps(parsed.apps.map(manifestToDef));
         setLoading(false);
       })
       .catch((e) => {

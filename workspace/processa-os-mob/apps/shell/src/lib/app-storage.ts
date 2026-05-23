@@ -9,7 +9,13 @@
 // Limpeza:
 //   - logout         → clearUser(sub)             remove tudo do usuário
 //   - close de um app → clearScope(sub, scope)    remove estado daquele app
+//
+// Contrato: `loadJSON` aceita um schema (zod) opcional. Quando informado,
+// valida o que veio do storage; se inválido, descarta e devolve fallback +
+// warn. Quando omitido, devolve cast sem validação (legacy — não preferido).
 // =============================================================================
+
+import type { ZodType } from "zod";
 
 const ROOT = "pos";
 
@@ -21,12 +27,24 @@ export function shellKey(sub: string, key: string) {
   return `${ROOT}:shell:${sub}:${key}`;
 }
 
-export function loadJSON<T>(key: string, fallback: T): T {
+export function loadJSON<T>(key: string, fallback: T, schema?: ZodType<T>): T {
   if (typeof window === "undefined") return fallback;
   try {
     const raw = window.localStorage.getItem(key);
     if (raw == null) return fallback;
-    return JSON.parse(raw) as T;
+    const parsed = JSON.parse(raw);
+    if (schema) {
+      const result = schema.safeParse(parsed);
+      if (!result.success) {
+        console.warn(`[storage:${key}] valor invalido, usando fallback`, {
+          error: result.error.issues,
+          rawSample: raw.slice(0, 200),
+        });
+        return fallback;
+      }
+      return result.data;
+    }
+    return parsed as T;
   } catch {
     return fallback;
   }

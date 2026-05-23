@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { NotifDto } from "./api";
+import { NotifDtoSchema, safeParseWithWarn } from "./schemas";
 
 interface Ctx {
   items: NotifDto[];
@@ -25,19 +26,22 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       startupRef.current = true;
     });
     es.addEventListener("notification", (ev: MessageEvent) => {
+      let raw: unknown = null;
       try {
-        const n = JSON.parse(ev.data) as NotifDto;
-        setItems((prev) => {
-          if (prev.some((p) => p.id === n.id)) return prev;
-          const next = [n, ...prev].slice(0, 100);
-          return next;
-        });
-        if (!startupRef.current) {
-          setUnread((u) => u + 1);
-          setLatestToast(n);
-        }
+        raw = JSON.parse(ev.data);
       } catch {
-        /* ignore */
+        console.warn("[notif:sse] payload nao-JSON", { sample: String(ev.data).slice(0, 200) });
+        return;
+      }
+      const n = safeParseWithWarn(NotifDtoSchema, raw, "notif.sse", null as NotifDto | null);
+      if (!n) return;
+      setItems((prev) => {
+        if (prev.some((p) => p.id === n.id)) return prev;
+        return [n, ...prev].slice(0, 100);
+      });
+      if (!startupRef.current) {
+        setUnread((u) => u + 1);
+        setLatestToast(n);
       }
     });
     // marca fim do replay apos primeiro frame

@@ -8,15 +8,18 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Grip } from "lucide-react";
 import type { AppDef } from "../../apps/registry";
 import { useMobState } from "../../lib/mob-state";
+import { useMobileAppStatus } from "../../lib/use-app-status";
 import { useLongPress } from "../../lib/use-long-press";
 import { haptic } from "../../lib/haptics";
+import { AppStatusIndicator } from "../AppStatusIndicator";
 
 const DOCK_KEY = "mob.dock.v1";
 const DOCK_SIZE = 4;
 
 export function MobileDock({ apps }: { apps: AppDef[] }) {
-  const { launchApp, openDrawer, closeDrawer, drawerOpen, shadeOpen, foregroundId, goHome } =
+  const { launchApp, openDrawer, closeDrawer, drawerOpen, shadeOpen, goHome } =
     useMobState();
+  const { status: appStatus } = useMobileAppStatus();
   const [dock, setDock] = useState<string[]>([]);
   // Long-press no botao Menu = vai pra area de trabalho (esconde o app aberto).
   // suppressTap evita disparar o toggle do drawer no release apos o long-press.
@@ -57,7 +60,6 @@ export function MobileDock({ apps }: { apps: AppDef[] }) {
         {dock.map((slug) => {
           const app = byId.get(slug);
           if (!app) return null;
-          const active = foregroundId === app.id;
           return (
             <button
               key={slug}
@@ -69,9 +71,7 @@ export function MobileDock({ apps }: { apps: AppDef[] }) {
               className="relative rounded-2xl p-1 transition-transform active:scale-90"
             >
               <DockIconVisual app={app} />
-              {active && (
-                <span className="absolute -bottom-1 left-1/2 h-1 w-6 -translate-x-1/2 rounded-full bg-primary" />
-              )}
+              <AppStatusIndicator status={appStatus.get(app.id)} />
             </button>
           );
         })}

@@ -19,17 +19,12 @@ import {
 import type { AppDef } from "../apps/registry";
 import { clearScope, loadJSON, saveJSON, shellKey } from "./app-storage";
 import { useUserSub } from "./user-context";
+import { PersistedMobSchema, type PersistedMob } from "./schemas";
 
 export interface MobOpenApp {
   appId: string;
   app: AppDef;
   openedAt: number;
-}
-
-interface PersistedMob {
-  open: { appId: string; openedAt: number }[];
-  foregroundId: string | null;
-  homeOrder: string[];
 }
 
 interface MobCtx {
@@ -67,11 +62,11 @@ export function MobStateProvider({ children }: { children: ReactNode }) {
   // Carrega o snapshot persistido (sem AppDef ainda — hydrate o completa)
   const persisted = useMemo(
     () =>
-      loadJSON<PersistedMob>(fullKey, {
-        open: [],
-        foregroundId: null,
-        homeOrder: [],
-      }),
+      loadJSON<PersistedMob>(
+        fullKey,
+        { open: [], foregroundId: null, homeOrder: [] },
+        PersistedMobSchema,
+      ),
     [fullKey],
   );
 

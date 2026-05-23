@@ -14,12 +14,12 @@ import {
   type ReactNode,
 } from "react";
 
-export type ThemeMode = "light" | "dark" | "system";
+import { ThemeModeSchema, type ThemeMode } from "./schemas";
+export type { ThemeMode };
 export type ResolvedTheme = "light" | "dark";
 
 const STORAGE_KEY = "os.theme";
 const DEFAULT_MODE: ThemeMode = "system";
-const VALID_MODES: ThemeMode[] = ["light", "dark", "system"];
 
 interface Ctx {
   /** Modo escolhido pelo usuario. */
@@ -35,8 +35,14 @@ const ThemeCtx = createContext<Ctx | null>(null);
 
 function readMode(): ThemeMode {
   try {
-    const v = localStorage.getItem(STORAGE_KEY) as ThemeMode | null;
-    if (v && VALID_MODES.includes(v)) return v;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw == null) return DEFAULT_MODE;
+    const parsed = ThemeModeSchema.safeParse(raw);
+    if (parsed.success) return parsed.data;
+    console.warn(`[storage:${STORAGE_KEY}] valor invalido, usando default`, {
+      error: parsed.error.issues,
+      raw,
+    });
   } catch {
     /* ignore */
   }
