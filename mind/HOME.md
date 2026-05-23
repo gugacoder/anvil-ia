@@ -35,7 +35,7 @@
 | [[atlas/concepts/director-web]] | Host multi-app do Director ERP (12+ módulos: WMS, Pipeliner, GDE, etc.) — runtime operacional na porta 4600 | calendar/notes/2026-05-14.md | 2026-05-19 |
 | [[atlas/concepts/deploy-pipeline-newdb]] | Endpoint `savePipelineNewDB` do AppBuilder — replica pipeline cadastrado para DB destino via script T-SQL idempotente | calendar/notes/2026-05-14.md | 2026-05-14 |
 | [[atlas/concepts/scriptpack-appbuilder]] | Ferramenta CLI migrant.lib para provisionar schema do AppBuilder em SQL Server | calendar/notes/2026-05-14.md | 2026-05-14 |
-| [[atlas/concepts/director-studio]] | Plataforma única que substitui AppBuilder + Portal + Director.Web/WMS + ADM renderizando o metamodelo `acesso.*` em Node — stack Vite 7/React 19/Hono, 5 agentes, wave model | calendar/notes/2026-05-15.md | 2026-05-19 |
+| [[atlas/concepts/director-studio]] | Plataforma única (brand: "Processa Studio") que substitui AppBuilder + Portal + Director.Web/WMS + ADM — 132 features, auditoria pós-harness com 9 débitos F123-F131 | calendar/notes/2026-05-15.md, calendar/notes/2026-05-19.md | 2026-05-23 |
 | [[atlas/concepts/processa-auth-paths]] | Os 5 caminhos de autenticação do ecossistema Processa (JWT/temp/LDAP-bridge/email/local) — schema `dbo` vs `acesso`, UsuarioFornecedor não universal | calendar/notes/2026-05-15.md | 2026-05-19 |
 | [[atlas/concepts/processa-aws-ports]] | Mapping canônico das portas do `52.67.203.133` (4306 auth bridge, 5100 portal-aws, 5300 ADM, etc.) — referência rápida pra evitar confusão entre serviços | sources/* SQL seeds + appsettings + ADM vite.config | 2026-05-16 |
 | [[atlas/concepts/processa-adm-tool]] | Processa ADM (`:5300`) — UI React de suporte interno do time Processa; abriga o **Gerador de senha temp** que gera credencial pra logar como super-user `processa` | sources/engenharia--fabrica--dotnet--processa.ADM/Fontes/Processa.ADM.Website/ | 2026-05-16 |
@@ -46,10 +46,17 @@
 | [[atlas/concepts/legacy-contracts/_about]] | Sub-namespace de contratos extraídos do legado pelo archaeologist | atlas/concepts/legacy-contracts/_about.md | 2026-05-15 |
 | [[atlas/concepts/ui-system/_about]] | Sub-namespace do design system catalogado pelo designer | atlas/concepts/ui-system/_about.md | 2026-05-15 |
 | [[atlas/concepts/validar-cript]] | `dbo.VALIDAR_CRIPT` / `fn_Decript` — criptografia legada reversível (XOR scramble 2011), senha seed PROCESSA=99 | calendar/notes/2026-05-15.md | 2026-05-19 |
-| [[atlas/concepts/director-studio-agent-team]] | Time de 5 agentes do Director.Studio (archaeologist/designer/curator/smith/ui-tester) com princípio de não-contaminação | calendar/notes/2026-05-15.md | 2026-05-19 |
-| [[atlas/concepts/director-studio-wave-model]] | Wave model feature-locked — harness `/dwave` que orquestra agentes por feature sequencialmente (contract→UX→impl→test→accept) | calendar/notes/2026-05-15.md | 2026-05-19 |
+| [[atlas/concepts/director-studio-agent-team]] | Time de 5 agentes (archaeologist/designer/curator/smith/ui-tester) — não-contaminação, anti-pattern flags 🚩, workflow smith↔ui-tester validado | calendar/notes/2026-05-15.md, calendar/notes/2026-05-19.md | 2026-05-23 |
+| [[atlas/concepts/director-studio-wave-model]] | Wave model feature-locked — dwave stateless, Ralph Loop 132 features, retrofit recipe, granularidade por contrato observável | calendar/notes/2026-05-15.md, calendar/notes/2026-05-19.md | 2026-05-23 |
 | [[atlas/concepts/tbaplicacao-app-registry]] | `acesso.TBaplicacao` como registro cross-tenant de apps — 23 appKeys, 5 caminhos de resolução, auth-scheme switching por DFchave, identity fixa de serviço | calendar/notes/2026-05-17.md | 2026-05-19 |
 | [[atlas/concepts/processa-source-control]] | SVN do Director VB6 em `https://172.27.0.5` (HTTP-only, sem SMB) vs repo de procedures em `\\172.27.3.10\svn\trunk` — mapa de hosts e protocolos | calendar/notes/2026-05-19.md | 2026-05-19 |
+| [[atlas/concepts/anchor-mission-persona]] | Anchor = MISSION + PERSONA — âncora que impede agentes de derivar para trabalho auto-referente; sem PERSONA, curator rubber-stamps | calendar/notes/2026-05-19.md | 2026-05-23 |
+| [[atlas/concepts/vite-dev-gate-pattern]] | Pattern para tree-shake de código dev-only em Vite/Rollup — 2 pontos de gate (import + registration) + verificação pós-build | calendar/notes/2026-05-19.md | 2026-05-23 |
+| [[atlas/concepts/feature-granularity-heuristic]] | Heurística de dimensionamento: feature = contrato observável + asserções; quebrar se >4h smith ou >15 arquivos | calendar/notes/2026-05-19.md | 2026-05-23 |
+| [[atlas/concepts/team]] | Time de especialistas do Anvil — smith, archaeologist, designer, curator, ui-tester — princípios operacionais e encadeamentos | atlas/concepts/team.md | 2026-05-23 |
+| [[atlas/concepts/processa-os]] | Web OS da Processa — shell GNOME-like com window manager próprio, apps reais (Chat AI, Notas, Arquivos), SSE notifications, auth JWT cookie | calendar/notes/2026-05-22.md | 2026-05-22 |
+| [[atlas/concepts/processa-os-federation]] | Variante Module Federation do Processa OS — `@originjs/vite-plugin-federation`, zero iframe, shared React, sem state reativo cross-remote | calendar/notes/2026-05-22.md | 2026-05-22 |
+| [[atlas/concepts/openclaude-sdk-chat]] | Par `@codrstudio/openclaude-sdk` + `openclaude-chat` — bridge SSE + componente React de chat AI, vendorizado como `.tgz` | calendar/notes/2026-05-22.md | 2026-05-22 |
 
 > Substrato meta-LYT (conceitos LYT, specs de locations, regras operacionais, átomos das camadas effort/x) vive em `atlas/meta/` e é alcançável via [[-about]]. Conceitos curados pelo agente sobre o mundo vão aqui em `atlas/concepts/` quando aparecerem.
 
@@ -61,6 +68,7 @@
 | [[atlas/connections/appbuilder-directorweb-topology]] | AppBuilder cadastra, Director.Web opera — separação cadastro vs runtime confirmada pelo PO | calendar/notes/2026-05-14.md | 2026-05-14 |
 | [[atlas/connections/validar-cript-auth-dependency]] | Auth path 5 (usuário interno) depende de VALIDAR_CRIPT reversível — cadeia de fragilidade para o Studio | calendar/notes/2026-05-15.md | 2026-05-19 |
 | [[atlas/connections/tbaplicacao-auth-scheme-switching]] | Proxy multi-app usa identity fixa de serviço (não do usuário) — auth-scheme determinado por DFchave da TBaplicacao | calendar/notes/2026-05-17.md | 2026-05-19 |
+| [[atlas/connections/anchor-curator-quality-gate]] | Anchor (MISSION+PERSONA) transforma curator de rubber-stamper em gate real — evidência: 9 débitos passaram pelo harness autônomo | calendar/notes/2026-05-19.md | 2026-05-23 |
 
 ### Works
 
@@ -72,3 +80,4 @@
 | Frente | Status | Descricao |
 |--------|--------|-----------|
 | [[mind/effort/on/director-studio/README\|director-studio]] | on | Plataforma única, 100% RTM. Time: archaeologist + designer + curator + smith + ui-tester. Manifesto em [[feature-manifest]]. |
+| [[mind/effort/on/processa-os/README\|processa-os]] | on | Web OS da Processa — shell GNOME-like, scaffolding pronto + smoke test verde. |

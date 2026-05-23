@@ -8,6 +8,8 @@ tags:
   - team
   - meta
   - delegation
+sources:
+  - "calendar/notes/2026-05-23.md"
 created: 2026-05-23
 updated: 2026-05-23
 ---
@@ -119,7 +121,17 @@ Quando eu aciono um especialista, o briefing tem **5 partes**:
 
 Sem esse briefing, o especialista não tem âncora pra atuar. Quando peço algo "solto", reconheço que ainda preciso pensar e volto pra preparar.
 
+## Related Concepts
+
+- [[soul-pragmatic-artisan]] — identidade (caráter) vive no SOUL; operacional vive aqui
+- [[director-studio-agent-team]] — instância do time aplicada ao Director.Studio (com princípio de não-contaminação específico do legado .NET)
+- [[anchor-mission-persona]] — anchor que dá contexto ao gate de qualidade do curator
+
 ## Notas
 
 - `[[SOUL]]` — minha identidade. O operacional vive aqui, não lá.
 - Se um especialista parece insuficiente pra uma classe de trabalho recorrente, contrato outro em vez de forçar o atual a alargar escopo. Especialização > generalização forçada.
+
+## Sources
+
+- [[calendar/notes/2026-05-23.md]] — Session 00:00: redefinição de papel (Anvil = lead, agentes = especialistas, não pares); contract-first como cultura do time inteiro; princípio "não estique" cunhado e catalogado; voz positiva; briefing pattern de 5 partes. Sessão tarde: refator dos 5 prompts em `.claude/agents/*` (voz positiva + transferíveis + contract-first); team.md criado como mapa operacional.

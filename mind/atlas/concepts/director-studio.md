@@ -1,11 +1,12 @@
 ---
 title: "Director.Studio"
-aliases: [director-studio, studio, director.studio]
+aliases: [director-studio, studio, director.studio, processa-studio]
 tags: [plataforma, processa, renderizacao, metamodelo, projeto]
 sources:
   - "calendar/notes/2026-05-15.md"
+  - "calendar/notes/2026-05-19.md"
 created: 2026-05-15
-updated: 2026-05-19
+updated: 2026-05-23
 ---
 
 # Director.Studio
@@ -13,6 +14,8 @@ updated: 2026-05-19
 Plataforma única de renderização de apps Processa, derivada da percepção de que **o ecossistema atual (AppBuilder + Director.Web/WMS + Portal Director + Pipeliner + ADM) já compartilha schema, framework de UI e modelo de auth** — diverge apenas em quais metadados consome do banco. Director.Studio reescreve esse runtime como **um único processo Node** que substitui os 4-5 serviços Windows .NET locais, lê o metamodelo [[acesso-metamodel]] e renderiza qualquer "app" como configuração, não como código.
 
 A nomenclatura segue o padrão de IDEs/ambientes de engenharia (Visual Studio, Android Studio, Data Studio): "Studio" é o ambiente onde se constroem e operam os apps Director, não uma metáfora teatral. O time dev hoje chama essa camada de "AppBuilder" — o Studio é a evolução: deixa de ser só o cadastro e passa a ser também o runtime unificado, eliminando a divisão cadastro-vs-execução documentada em [[appbuilder-directorweb-topology]].
+
+**Brand exposto ao cliente: "Processa Studio"** (com espaço, não ponto). "Director.Studio" é nome interno do projeto/plataforma. A distinção surgiu da auditoria pós-harness (2026-05-19): cliente real confunde "Director.Studio" com o nome do app. O smith atualizou 5 telas + manifest PWA para exibir "Processa Studio" com logomarca em vez de texto.
 
 ## Key Points
 
@@ -108,9 +111,23 @@ Auth do Studio diverge conscientemente do legado: cookie httpOnly + sessão serv
 
 Descoberta operacional: `AuthQuery` usa schema `dbo.*` (não `acesso.*`) na maioria das bases — `TBusuario` e `TBempresa` vivem em `dbo`. Smith implementou schema-aware probe via `INFORMATION_SCHEMA` com fallback `acesso→dbo` e cache. `portal.UsuarioFornecedor` (auth path 4 — fornecedor por email) não existe em toda base — é específico de instalações com integração de fornecedores.
 
-### Manifest seed (2026-05-15)
+### Manifest seed (2026-05-15) → 132 features (2026-05-19)
 
-27 features (F001-F027) no `feature-manifest.md`. Cobertura RTM 100% obrigatória — sem MVP/mock. Manifest gerenciado pelo curator, expandido incrementalmente pelo archaeologist. Harness de execução: `/dwave` em `/loop` self-paced (ver [[director-studio-wave-model]]).
+27 features (F001-F027) no seed inicial do `feature-manifest.md`. Expandido para 132 features (F001-F131) durante execução do harness Ralph Loop. 50 features foram bulk-deferred para cutover-fase-2. Cobertura RTM 100% obrigatória — sem MVP/mock. Manifest gerenciado pelo curator, expandido incrementalmente pelo archaeologist. Harness de execução: `/dwave` em `/loop` self-paced (ver [[director-studio-wave-model]]).
+
+### Auditoria pós-harness (2026-05-19)
+
+Auditoria humana via Chrome MCP após Ralph Loop marcar 132/132 features como `accepted`. Encontrados 9 débitos (F123-F131):
+
+- **F123** — ModelEngine `?app=appKey` (root cause de ~80% das telas erradas; fix de 3 linhas em `area-page.tsx`)
+- **F125** — 4 strings de debug vazando no bundle prod (gateadas via `import.meta.env.DEV`; ver [[vite-dev-gate-pattern]])
+- **F126/F127** — 20 smoke routes no bundle prod + console.logs (tree-shake fix)
+- **F128** — brand text "Director.Studio" → logo image "Processa Studio" + manifest PWA pt-BR
+- **F129** — sidebar não reagia a troca de appKey (bug de early-return guard em `use-menu.ts`)
+- **F130** — duplicata "Sep/ Abst" no menu WMS (não-bug: 2 rows reais em `acesso.TBmodulo`; decisão pendente)
+- **F131** — `tsc -b` quebrando build por TS errors pré-existentes (débito P1)
+
+Lição: harness mecânico produz cobertura técnica mas não substitui juízo humano. Ver [[anchor-mission-persona]] para o conceito de anchor que faltou durante a execução autônoma.
 
 ## Related Concepts
 
@@ -124,6 +141,10 @@ Descoberta operacional: `AuthQuery` usa schema `dbo.*` (não `acesso.*`) na maio
 - [[director-studio-wave-model]] — harness de execução feature-locked via `/dwave`
 - [[validar-cript]] — criptografia legada reversível que o Studio herda durante coexistência
 
+- [[anchor-mission-persona]] — conceito de anchor (MISSION+PERSONA) que mantém qualidade durante execução autônoma do harness
+- [[vite-dev-gate-pattern]] — pattern descoberto durante auditoria pós-harness para eliminar código dev do bundle prod
+
 ## Sources
 
 - [[calendar/notes/2026-05-15.md]] — sessão de descoberta do metamodelo, leitura do `Processa.Sdk.Auth`, decisão pelo nome Director.Studio, escopo do protótipo em `workspace/director-studio/`; bootstrap do workspace com stack definido; montagem do time de 5 agentes; wave model feature-locked; manifest seed de 27 features; bloqueio F003 resolvido via fn_Decript
+- [[calendar/notes/2026-05-19.md]] — auditoria pós-harness: 9 débitos F123-F131; brand "Processa Studio"; manifest expandido para 132 features; ciclo smith↔ui-tester de 7 fixes; agent-chat com NIC sobre metodologia
