@@ -16,10 +16,9 @@ import {
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { ArquivosApp } from "./ArquivosApp";
-import { SistemaApp } from "./SistemaApp";
 import { RelogioApp } from "./RelogioApp";
 import { FederatedApp } from "./FederatedApp";
-import { MobileSistemaApp } from "../components/mobile/MobileSistemaApp";
+import { SettingsApp } from "../components/SettingsApp";
 
 export interface AppManifest {
   slug: string;
@@ -75,10 +74,8 @@ const ICONS: Record<string, LucideIcon> = {
 const INTERNAL_RENDERERS: Record<string, (props: AppInstanceProps) => ReactNode> = {
   arquivos: () => <ArquivosApp />,
   relogio: () => <RelogioApp />,
-  // sistema tem versoes distintas por form-factor: o desktop mantem o
-  // SistemaApp tradicional; o mobile usa a pagina de Configuracoes com
-  // tema e secoes.
-  sistema: (props) => (props.formFactor === "mobile" ? <MobileSistemaApp /> : <SistemaApp />),
+  // sistema = SettingsApp, componente unico que adapta layout via formFactor.
+  sistema: (props) => <SettingsApp {...props} />,
 };
 
 // Mapa de loaders para remotes federados.

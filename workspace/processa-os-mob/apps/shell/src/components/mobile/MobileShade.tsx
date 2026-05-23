@@ -20,7 +20,7 @@ interface ShadeProps {
 export function MobileShade({ user, onLogout }: ShadeProps) {
   const { closeShade } = useMobState();
   const { items, clear, markAllRead } = useNotifications();
-  const { theme, toggle } = useTheme();
+  const { resolvedTheme, toggle } = useTheme();
 
   return (
     <motion.div
@@ -51,9 +51,9 @@ export function MobileShade({ user, onLogout }: ShadeProps) {
 
         <div className="grid grid-cols-3 gap-3 p-4 pt-2">
           <Tile
-            active={theme === "light"}
+            active={resolvedTheme === "light"}
             label="Tema"
-            Icon={theme === "dark" ? Sun : Moon}
+            Icon={resolvedTheme === "dark" ? Sun : Moon}
             onClick={() => {
               haptic("light");
               toggle();

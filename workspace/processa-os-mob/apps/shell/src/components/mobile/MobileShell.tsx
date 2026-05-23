@@ -8,7 +8,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useApps } from "../../lib/use-apps";
 import { useMobState, MobStateProvider } from "../../lib/mob-state";
 import { api, type User } from "../../lib/api";
-import { themeClass } from "../../lib/mob-themes";
 import { MobileHome } from "./MobileHome";
 import { MobileAppRuntime } from "./MobileAppRuntime";
 import { MobileSwitcher } from "./MobileSwitcher";
@@ -32,19 +31,15 @@ export function MobileShell({ user, onLogout }: MobileShellProps) {
 
 function MobileShellInner({ user, onLogout }: MobileShellProps) {
   const { apps, loading, error } = useApps();
-  const { foregroundId, switcherOpen, shadeOpen, drawerOpen, theme } = useMobState();
+  const { foregroundId, switcherOpen, shadeOpen, drawerOpen } = useMobState();
 
   async function logout() {
     await api.logout();
     onLogout();
   }
 
-  const themeCls = themeClass(theme);
-
   return (
-    <div
-      className={`mob-shell ${themeCls} os-wallpaper relative h-safe-screen w-full overflow-hidden select-none-touch`}
-    >
+    <div className="mob-shell os-wallpaper relative h-safe-screen w-full overflow-hidden select-none-touch">
       {loading && (
         <div className="pt-safe absolute top-2 left-4 z-10 text-xs text-white/70 drop-shadow">
           Carregando registry…

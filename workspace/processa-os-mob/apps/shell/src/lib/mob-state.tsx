@@ -7,13 +7,11 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useState,
   type ReactNode,
 } from "react";
 import type { AppDef } from "../apps/registry";
-import { readTheme, writeTheme, type ThemeKey } from "./mob-themes";
 
 export interface MobOpenApp {
   appId: string;
@@ -30,8 +28,6 @@ interface MobCtx {
   editMode: boolean;
   homeOrder: string[]; // ordem dos icones na home (slugs)
   setHomeOrder: (slugs: string[]) => void;
-  theme: ThemeKey;
-  setTheme: (t: ThemeKey) => void;
   launchApp: (app: AppDef) => void;
   closeApp: (appId: string) => void;
   bringToFront: (appId: string) => void;
@@ -55,13 +51,6 @@ export function MobStateProvider({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [homeOrder, setHomeOrder] = useState<string[]>([]);
-  const [theme, setThemeState] = useState<ThemeKey>(() => readTheme());
-
-  useEffect(() => {
-    writeTheme(theme);
-  }, [theme]);
-
-  const setTheme = useCallback((t: ThemeKey) => setThemeState(t), []);
 
   const launchApp = useCallback((app: AppDef) => {
     setOpen((prev) => {
@@ -113,8 +102,6 @@ export function MobStateProvider({ children }: { children: ReactNode }) {
       editMode,
       homeOrder,
       setHomeOrder,
-      theme,
-      setTheme,
       launchApp,
       closeApp,
       bringToFront,
@@ -135,8 +122,6 @@ export function MobStateProvider({ children }: { children: ReactNode }) {
       drawerOpen,
       editMode,
       homeOrder,
-      theme,
-      setTheme,
       launchApp,
       closeApp,
       bringToFront,

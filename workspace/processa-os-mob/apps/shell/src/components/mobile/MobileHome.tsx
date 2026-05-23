@@ -10,6 +10,7 @@ import { useApps } from "../../lib/use-apps";
 import { useNow } from "../Clock";
 import type { AppDef } from "../../apps/registry";
 import { haptic } from "../../lib/haptics";
+import { HomeAppIcon } from "../HomeAppIcon";
 
 export function MobileHome() {
   const { foregroundId, switcherOpen, launchApp } = useMobState();
@@ -43,7 +44,7 @@ function HomeClockWidget() {
     <motion.div
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col items-center pt-8 text-white drop-shadow"
+      className="flex flex-col items-center pt-8 text-foreground [text-shadow:0_1px_2px_rgba(255,255,255,0.6)] dark:[text-shadow:0_2px_4px_rgba(0,0,0,0.5)]"
     >
       <span className="text-6xl font-light tracking-tight tabular-nums">{time}</span>
       <span className="mt-1 text-sm capitalize opacity-80">{date}</span>
@@ -61,19 +62,7 @@ function AppGrid({ apps, onLaunch }: { apps: AppDef[]; onLaunch: (a: AppDef) => 
       className="mt-10 grid w-full max-w-md grid-cols-4 gap-x-4 gap-y-6 px-5"
     >
       {apps.map((app) => (
-        <button
-          key={app.id}
-          type="button"
-          onClick={() => onLaunch(app)}
-          className="group flex flex-col items-center gap-1.5 rounded-2xl p-1 transition-transform active:scale-90"
-        >
-          <span className="grid h-14 w-14 place-items-center rounded-2xl bg-foreground/12 ring-1 ring-foreground/15 shadow-md backdrop-blur-md">
-            <app.Icon className="h-7 w-7 text-white" strokeWidth={1.9} />
-          </span>
-          <span className="line-clamp-2 text-center text-[11px] font-medium text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]">
-            {app.label}
-          </span>
-        </button>
+        <HomeAppIcon key={app.id} app={app} size="lg" onClick={() => onLaunch(app)} />
       ))}
     </motion.div>
   );
