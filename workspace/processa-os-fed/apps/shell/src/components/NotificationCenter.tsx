@@ -25,7 +25,7 @@ export function NotificationCenter({
 
   if (!open) return null;
   return (
-    <div className="os-glass absolute top-12 right-2 z-[20] w-[360px] rounded-2xl p-2 shadow-2xl">
+    <div className="os-glass absolute top-12 right-2 z-[10000] w-[360px] rounded-2xl p-2 shadow-2xl">
       <div className="flex items-center justify-between px-2 py-1.5">
         <div className="flex items-center gap-2 text-sm font-semibold">
           <Bell className="h-4 w-4 text-primary" /> Notificações
@@ -89,7 +89,7 @@ export function ToastStack() {
   return (
     <div
       key={latestToast.id}
-      className="os-glass animate-in fade-in slide-in-from-right-2 absolute right-4 bottom-24 z-[6] w-[300px] rounded-xl p-3 text-sm shadow-xl"
+      className="os-glass animate-in fade-in slide-in-from-right-2 absolute right-4 bottom-24 z-[10001] w-[300px] rounded-xl p-3 text-sm shadow-xl"
     >
       <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
         {KIND_LABEL[latestToast.kind] ?? latestToast.kind}

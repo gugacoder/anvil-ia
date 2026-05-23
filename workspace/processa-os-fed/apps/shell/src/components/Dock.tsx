@@ -15,7 +15,7 @@ export function Dock({ apps, onLaunch }: Props) {
   const orphanWins = windows.filter((w) => !fixedIds.has(w.appId));
 
   return (
-    <div className="pointer-events-none absolute right-0 bottom-3 left-0 z-[5] flex justify-center">
+    <div className="pointer-events-none absolute right-0 bottom-3 left-0 z-[9999] flex justify-center">
       <div className="os-glass pointer-events-auto flex items-end gap-1 rounded-2xl p-2">
         {apps.map((app) => {
           const win = windows.find((w) => w.appId === app.id);

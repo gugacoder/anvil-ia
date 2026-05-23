@@ -28,7 +28,7 @@ export function TopBar({ user, onLogout, onOpenNotifications }: Props) {
 
   return (
     <header
-      className="os-glass absolute top-2 right-2 left-2 z-[5] flex h-9 items-center justify-between rounded-full px-3 text-xs"
+      className="os-glass absolute top-2 right-2 left-2 z-[9999] flex h-9 items-center justify-between rounded-full px-3 text-xs"
       style={{ height: 36 }}
     >
       <div className="flex items-center gap-3 text-muted-foreground">
@@ -77,7 +77,7 @@ export function TopBar({ user, onLogout, onOpenNotifications }: Props) {
           {menuOpen && (
             <div
               onClick={(e) => e.stopPropagation()}
-              className="os-glass absolute top-full right-0 mt-2 w-48 rounded-xl p-1 text-sm shadow-xl"
+              className="os-glass absolute top-full right-0 z-[10000] mt-2 w-48 rounded-xl p-1 text-sm shadow-xl"
             >
               <div className="px-3 py-2 text-xs text-muted-foreground">
                 Conectado como

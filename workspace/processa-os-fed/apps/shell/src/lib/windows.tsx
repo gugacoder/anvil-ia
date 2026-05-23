@@ -50,8 +50,15 @@ const WinCtx = createContext<Ctx | null>(null);
 
 const TOP_BAR = 36;
 const DOCK_RESERVED = 80;
+// Shell (TopBar, Dock, dropdowns, toasts) vive em z >= 9999.
+// Janelas ficam confinadas abaixo disso para garantir always-on-top da shell.
+const WIN_Z_MAX = 9000;
 
 let nextZ = 10;
+function bumpZ() {
+  nextZ = nextZ >= WIN_Z_MAX ? 10 : nextZ + 1;
+  return nextZ;
+}
 
 function fitToViewport(w: WinState): WinState {
   const vw = window.innerWidth;
@@ -70,7 +77,7 @@ export function WindowsProvider({ children }: { children: ReactNode }) {
 
   const focus = useCallback((id: string) => {
     setWindows((prev) =>
-      prev.map((w) => (w.id === id ? { ...w, z: ++nextZ, minimized: false } : w)),
+      prev.map((w) => (w.id === id ? { ...w, z: bumpZ(), minimized: false } : w)),
     );
   }, []);
 
@@ -79,7 +86,7 @@ export function WindowsProvider({ children }: { children: ReactNode }) {
       const existing = prev.find((w) => w.appId === spec.appId);
       if (existing) {
         return prev.map((w) =>
-          w.id === existing.id ? { ...w, z: ++nextZ, minimized: false } : w,
+          w.id === existing.id ? { ...w, z: bumpZ(), minimized: false } : w,
         );
       }
       const vw = window.innerWidth;
@@ -94,7 +101,7 @@ export function WindowsProvider({ children }: { children: ReactNode }) {
         y,
         w,
         h,
-        z: ++nextZ,
+        z: bumpZ(),
         minimized: false,
         maximized: false,
       };
@@ -127,7 +134,7 @@ export function WindowsProvider({ children }: { children: ReactNode }) {
           w: vw - 16,
           h: vh - 8,
           maximized: true,
-          z: ++nextZ,
+          z: bumpZ(),
         };
       }),
     );
@@ -135,11 +142,22 @@ export function WindowsProvider({ children }: { children: ReactNode }) {
 
   const move = useCallback((id: string, x: number, y: number) => {
     setWindows((prev) =>
-      prev.map((w) =>
-        w.id === id && !w.maximized
-          ? { ...w, x: Math.max(0, x), y: Math.max(TOP_BAR, y) }
-          : w,
-      ),
+      prev.map((w) => {
+        if (w.id !== id || w.maximized) return w;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        // mantém pelo menos a title bar (~40px) visível na area util,
+        // entre a TopBar e a Dock — janela nunca desaparece sob a dock.
+        const minY = TOP_BAR + 8;
+        const maxY = vh - DOCK_RESERVED - 40;
+        const minX = -(w.w - 80); // permite encostar quase tudo na esquerda
+        const maxX = vw - 80; // mas mantém ao menos 80px visíveis à direita
+        return {
+          ...w,
+          x: Math.max(minX, Math.min(x, maxX)),
+          y: Math.max(minY, Math.min(y, maxY)),
+        };
+      }),
     );
   }, []);
 
