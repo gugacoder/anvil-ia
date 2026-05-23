@@ -1,0 +1,247 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:is(.dark *));
+
+/* =============================================================================
+   DESKTOP (paleta esmeralda/turquesa) — identica ao -fed. Nao mexer.
+   Vars mobile-only (palette slate/indigo, --accent-h/s/l etc.) ficam scoped
+   sob .mob-shell no fim deste arquivo.
+   ============================================================================= */
+:root {
+  --background: oklch(0.14 0.02 180);
+  --foreground: oklch(0.97 0 0);
+  --card: oklch(0.19 0.025 175);
+  --card-foreground: oklch(0.97 0 0);
+  --popover: oklch(0.19 0.025 175);
+  --popover-foreground: oklch(0.97 0 0);
+  --primary: oklch(0.72 0.15 170);
+  --primary-foreground: oklch(0.12 0.02 175);
+  --secondary: oklch(0.26 0.025 175);
+  --secondary-foreground: oklch(0.97 0 0);
+  --muted: oklch(0.23 0.02 175);
+  --muted-foreground: oklch(0.72 0.025 175);
+  --accent: oklch(0.32 0.045 170);
+  --accent-foreground: oklch(0.97 0 0);
+  --destructive: oklch(0.55 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.3 0.02 175);
+  --input: oklch(0.23 0.02 175);
+  --ring: oklch(0.72 0.15 170);
+  --radius: 0.625rem;
+
+  /* Vars utilitarias neutras (nao alteram a paleta). Safe-area = 0 fora de
+     PWA standalone; dock-h so eh consumido pela shell mobile. */
+  --sa-top: env(safe-area-inset-top, 0px);
+  --sa-right: env(safe-area-inset-right, 0px);
+  --sa-bottom: env(safe-area-inset-bottom, 0px);
+  --sa-left: env(safe-area-inset-left, 0px);
+  --dock-h: 76px;
+}
+
+.light {
+  --background: oklch(0.99 0.005 175);
+  --foreground: oklch(0.18 0.02 175);
+  --card: oklch(0.97 0.01 175);
+  --card-foreground: oklch(0.18 0.02 175);
+  --popover: oklch(0.99 0.005 175);
+  --popover-foreground: oklch(0.18 0.02 175);
+  --primary: oklch(0.55 0.15 170);
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.94 0.01 175);
+  --secondary-foreground: oklch(0.2 0.02 175);
+  --muted: oklch(0.94 0.01 175);
+  --muted-foreground: oklch(0.45 0.02 175);
+  --accent: oklch(0.92 0.025 170);
+  --accent-foreground: oklch(0.2 0.02 175);
+  --border: oklch(0.88 0.015 175);
+  --input: oklch(0.92 0.015 175);
+  --ring: oklch(0.55 0.15 170);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius: var(--radius);
+}
+
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--background);
+  color: var(--foreground);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Wallpaper fed: igual hub (esmeralda + turquesa + ouro suave) */
+.os-wallpaper {
+  background:
+    radial-gradient(at 18% 20%, oklch(0.45 0.16 170 / 0.55), transparent 55%),
+    radial-gradient(at 82% 78%, oklch(0.55 0.18 80 / 0.4), transparent 60%),
+    radial-gradient(at 60% 30%, oklch(0.5 0.16 200 / 0.5), transparent 60%),
+    linear-gradient(155deg, oklch(0.14 0.025 180), oklch(0.1 0.02 175));
+}
+.light .os-wallpaper {
+  background:
+    radial-gradient(at 18% 20%, oklch(0.88 0.07 170 / 0.6), transparent 55%),
+    radial-gradient(at 82% 78%, oklch(0.9 0.06 80 / 0.55), transparent 60%),
+    radial-gradient(at 88% 78%, oklch(0.88 0.07 200 / 0.55), transparent 60%),
+    linear-gradient(155deg, oklch(0.95 0.015 180), oklch(0.93 0.015 175));
+}
+
+.os-glass {
+  background: color-mix(in oklch, var(--card) 70%, transparent);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+}
+
+.os-window-focus { box-shadow: 0 16px 64px -16px rgb(0 0 0 / 0.6), 0 0 0 1px var(--border); }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+/* =============================================================================
+   MOBILE-ONLY — aditivo. So aplica quando <div data-ff="mobile"> for ancestor.
+   Desktop nao ve nada disso.
+   ============================================================================= */
+
+/* Paleta slate/indigo + Material You-lite. Sobrescreve a esmeralda do desktop
+   APENAS dentro do subtree mobile. */
+/* Mob default = tema "noite" (indigo). Demais temas sobrescrevem so --accent-h
+   abaixo. Vars derivam todas dele, entao 1 linha por tema basta. */
+.mob-shell {
+  --accent-h: 240;
+  --accent-s: 70%;
+  --accent-l: 60%;
+
+  --background: oklch(0.16 0.02 var(--accent-h));
+  --foreground: oklch(0.97 0 0);
+  --card: oklch(0.21 0.025 var(--accent-h));
+  --card-foreground: oklch(0.97 0 0);
+  --popover: oklch(0.21 0.025 var(--accent-h));
+  --popover-foreground: oklch(0.97 0 0);
+  --primary: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --primary-foreground: oklch(0.14 0.02 var(--accent-h));
+  --secondary: oklch(0.28 0.03 var(--accent-h));
+  --secondary-foreground: oklch(0.97 0 0);
+  --muted: oklch(0.24 0.02 var(--accent-h));
+  --muted-foreground: oklch(0.72 0.025 var(--accent-h));
+  --accent: oklch(0.34 0.05 var(--accent-h));
+  --accent-foreground: oklch(0.97 0 0);
+  --destructive: oklch(0.6 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --border: oklch(0.32 0.025 var(--accent-h));
+  --input: oklch(0.24 0.02 var(--accent-h));
+  --ring: hsl(var(--accent-h) var(--accent-s) var(--accent-l));
+  --radius: 0.875rem;
+}
+
+.light .mob-shell {
+  --background: oklch(0.99 0.005 var(--accent-h));
+  --foreground: oklch(0.18 0.025 var(--accent-h));
+  --card: oklch(0.97 0.01 var(--accent-h));
+  --card-foreground: oklch(0.18 0.025 var(--accent-h));
+  --popover: oklch(0.99 0.005 var(--accent-h));
+  --popover-foreground: oklch(0.18 0.025 var(--accent-h));
+  --primary: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) - 12%));
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.94 0.012 var(--accent-h));
+  --secondary-foreground: oklch(0.2 0.025 var(--accent-h));
+  --muted: oklch(0.94 0.01 var(--accent-h));
+  --muted-foreground: oklch(0.45 0.025 var(--accent-h));
+  --accent: oklch(0.92 0.03 var(--accent-h));
+  --accent-foreground: oklch(0.2 0.025 var(--accent-h));
+  --border: oklch(0.88 0.015 var(--accent-h));
+  --input: oklch(0.92 0.015 var(--accent-h));
+  --ring: hsl(var(--accent-h) var(--accent-s) calc(var(--accent-l) - 12%));
+}
+
+/* Temas alternativos — so trocam o hue base. */
+.mob-shell.theme-floresta { --accent-h: 170; --accent-s: 60%; }
+.mob-shell.theme-brasa    { --accent-h: 25;  --accent-s: 80%; }
+.mob-shell.theme-lavanda  { --accent-h: 295; --accent-s: 65%; }
+
+/* Mobile body: overscroll/tap-highlight off + viewport dvh. So afeta o
+   subtree mobile via :has() — fallback gracioso fora dele. */
+.mob-shell {
+  height: 100dvh;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* Wallpaper mobile — substitui o esmeralda do desktop apenas no subtree mobile */
+/* Mob: `.os-wallpaper` esta no MESMO elemento que `.mob-shell` (e tambem pode
+   estar em descendentes). Cobrir os dois casos. */
+.mob-shell.os-wallpaper,
+.mob-shell .os-wallpaper {
+  background:
+    radial-gradient(at 18% 20%, hsl(var(--accent-h) 70% 55% / 0.55), transparent 55%),
+    radial-gradient(at 82% 78%, hsl(calc(var(--accent-h) + 50) 75% 60% / 0.4), transparent 60%),
+    radial-gradient(at 60% 30%, hsl(calc(var(--accent-h) - 30) 70% 55% / 0.45), transparent 60%),
+    linear-gradient(155deg, oklch(0.16 0.03 var(--accent-h)), oklch(0.1 0.02 var(--accent-h)));
+}
+.light .mob-shell.os-wallpaper,
+.light .mob-shell .os-wallpaper {
+  background:
+    radial-gradient(at 18% 20%, hsl(var(--accent-h) 80% 80% / 0.6), transparent 55%),
+    radial-gradient(at 82% 78%, hsl(calc(var(--accent-h) + 50) 85% 82% / 0.55), transparent 60%),
+    radial-gradient(at 60% 30%, hsl(calc(var(--accent-h) - 30) 80% 80% / 0.55), transparent 60%),
+    linear-gradient(155deg, oklch(0.95 0.015 var(--accent-h)), oklch(0.93 0.015 var(--accent-h)));
+}
+
+.mob-shell .os-glass {
+  background: color-mix(in oklch, var(--card) 65%, transparent);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
+
+.os-glass-strong {
+  background: color-mix(in oklch, var(--card) 85%, transparent);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+}
+
+/* Utilitarias safe-area — neutras (env() = 0 fora de PWA standalone) */
+.pt-safe { padding-top: var(--sa-top); }
+.pr-safe { padding-right: var(--sa-right); }
+.pb-safe { padding-bottom: var(--sa-bottom); }
+.pl-safe { padding-left: var(--sa-left); }
+.px-safe { padding-left: var(--sa-left); padding-right: var(--sa-right); }
+.py-safe { padding-top: var(--sa-top); padding-bottom: var(--sa-bottom); }
+.mt-safe { margin-top: var(--sa-top); }
+.mb-safe { margin-bottom: var(--sa-bottom); }
+.h-safe-screen { height: 100dvh; }
+.min-h-safe-screen { min-height: 100dvh; }
+
+/* Touch utilities — neutras */
+.touch-pan-y { touch-action: pan-y; }
+.touch-pan-x { touch-action: pan-x; }
+.touch-none { touch-action: none; }
+.select-none-touch { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+
+/* Long-press jiggle (modo edicao home screen) — so usada no mobile */
+@keyframes jiggle {
+  0%, 100% { transform: rotate(-1.2deg); }
+  50%      { transform: rotate(1.2deg); }
+}
+.os-jiggle { animation: jiggle 0.22s ease-in-out infinite; transform-origin: center; }
+.os-jiggle:nth-child(odd) { animation-delay: -0.11s; }

@@ -1,0 +1,6 @@
+Bem-vindo aos Arquivos.
+
+Esta eh sua pasta pessoal de arquivos do Processa OS.
+Adicione arquivos diretamente em storage/files/ no servidor — eles aparecem aqui.
+
+Voce pode apagar este arquivo a qualquer momento.

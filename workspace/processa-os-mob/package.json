@@ -1,0 +1,15 @@
+{
+  "name": "processa-os-mob",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/*"],
+  "scripts": {
+    "dev": "concurrently -k -n srv,shl,cht,nts -c magenta,cyan,yellow,green \"npm run dev -w apps/server\" \"npm run dev -w apps/shell\" \"npm run dev -w apps/chat\" \"npm run dev -w apps/notas\"",
+    "build": "npm run build -w apps/chat && npm run build -w apps/notas && npm run build -w apps/shell && npm run build -w apps/server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.6.0"
+  }
+}

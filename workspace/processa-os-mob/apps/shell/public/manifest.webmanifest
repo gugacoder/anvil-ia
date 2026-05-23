@@ -1,0 +1,25 @@
+{
+  "name": "Processa OS",
+  "short_name": "Processa",
+  "description": "Sistema operacional web da Processa — desktop e mobile",
+  "id": "/so/",
+  "start_url": "/so/",
+  "scope": "/so/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "categories": ["productivity", "utilities"],
+  "lang": "pt-BR",
+  "dir": "ltr",
+  "prefer_related_applications": false,
+  "icons": [
+    {
+      "src": "/so/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

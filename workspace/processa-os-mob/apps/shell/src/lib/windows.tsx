@@ -1,0 +1,562 @@
+// =============================================================================
+// Window Manager — abre apps como janelas com drag, resize, min/max/close, z-index.
+// Suporta multi-instância para apps com flag `multi`.
+// =============================================================================
+
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import type { AppDef, AppInstanceProps } from "../apps/registry";
+
+export interface WinSpec {
+  appId: string;
+  app: AppDef;
+  initial?: { x?: number; y?: number; w?: number; h?: number };
+  minSize?: { w: number; h: number };
+  initialPath?: string;
+}
+
+export interface WinState {
+  id: string;
+  appId: string;
+  app: AppDef;
+  title: string;
+  baseTitle: string;
+  /** Sufixo numérico para janelas 2+ do mesmo app (ex: "Chat (2)"). */
+  instanceIndex: number;
+  initialPath: string;
+  currentPath: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  z: number;
+  openedAt: number;
+  minSize?: { w: number; h: number };
+  minimized: boolean;
+  maximized: boolean;
+  prev?: { x: number; y: number; w: number; h: number };
+}
+
+interface Ctx {
+  windows: WinState[];
+  open: (spec: WinSpec) => void;
+  openNew: (app: AppDef, initialPath?: string) => void;
+  duplicate: (id: string) => void;
+  close: (id: string) => void;
+  closeAll: (appId: string) => void;
+  focus: (id: string) => void;
+  minimize: (id: string) => void;
+  toggleMaximize: (id: string) => void;
+  move: (id: string, x: number, y: number) => void;
+  resize: (id: string, w: number, h: number) => void;
+  setCurrentPath: (id: string, path: string) => void;
+  setDynamicTitle: (id: string, title: string | null) => void;
+  activeId: string | null;
+}
+
+const WinCtx = createContext<Ctx | null>(null);
+
+const TOP_BAR = 36;
+const DOCK_RESERVED = 80;
+// Shell (TopBar, Dock, dropdowns, toasts) vive em z >= 9999.
+// Janelas ficam confinadas abaixo disso para garantir always-on-top da shell.
+const WIN_Z_MAX = 9000;
+
+let nextZ = 10;
+function bumpZ() {
+  nextZ = nextZ >= WIN_Z_MAX ? 10 : nextZ + 1;
+  return nextZ;
+}
+
+let idCounter = 0;
+function genId(appId: string) {
+  idCounter += 1;
+  return `${appId}-${idCounter}`;
+}
+
+function fitToViewport(w: WinState): WinState {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight - TOP_BAR - DOCK_RESERVED;
+  return {
+    ...w,
+    w: Math.min(w.w, vw - 16),
+    h: Math.min(w.h, vh - 16),
+    x: Math.max(8, Math.min(w.x, vw - w.w - 8)),
+    y: Math.max(TOP_BAR + 8, Math.min(w.y, TOP_BAR + vh - 80)),
+  };
+}
+
+function createWin(spec: WinSpec, prevWindows: WinState[]): WinState {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight - TOP_BAR - DOCK_RESERVED;
+  const w = spec.initial?.w ?? spec.app.defaultSize?.w ?? Math.min(880, vw - 80);
+  const h = spec.initial?.h ?? spec.app.defaultSize?.h ?? Math.min(560, vh - 60);
+  const x =
+    spec.initial?.x ?? Math.max(40, (vw - w) / 2 + (prevWindows.length % 6) * 24);
+  const y = spec.initial?.y ?? TOP_BAR + 24 + (prevWindows.length % 6) * 24;
+  const sameApp = prevWindows.filter((p) => p.appId === spec.appId);
+  const instanceIndex = sameApp.length + 1;
+  const baseTitle = spec.app.label;
+  const initialPath = spec.initialPath ?? spec.app.defaultPath ?? "/";
+  return fitToViewport({
+    id: genId(spec.appId),
+    appId: spec.appId,
+    app: spec.app,
+    title: instanceIndex > 1 ? `${baseTitle} (${instanceIndex})` : baseTitle,
+    baseTitle,
+    instanceIndex,
+    initialPath,
+    currentPath: initialPath,
+    x,
+    y,
+    w,
+    h,
+    z: bumpZ(),
+    openedAt: Date.now(),
+    minSize: spec.minSize,
+    minimized: false,
+    maximized: false,
+  });
+}
+
+export function WindowsProvider({ children }: { children: ReactNode }) {
+  const [windows, setWindows] = useState<WinState[]>([]);
+
+  const focus = useCallback((id: string) => {
+    setWindows((prev) =>
+      prev.map((w) => (w.id === id ? { ...w, z: bumpZ(), minimized: false } : w)),
+    );
+  }, []);
+
+  const open = useCallback((spec: WinSpec) => {
+    setWindows((prev) => {
+      // Singleton: foca existente em vez de criar nova.
+      if (!spec.app.multi) {
+        const existing = prev.find((w) => w.appId === spec.appId);
+        if (existing) {
+          return prev.map((w) =>
+            w.id === existing.id ? { ...w, z: bumpZ(), minimized: false } : w,
+          );
+        }
+      }
+      return [...prev, createWin(spec, prev)];
+    });
+  }, []);
+
+  const openNew = useCallback((app: AppDef, initialPath?: string) => {
+    setWindows((prev) => [
+      ...prev,
+      createWin({ appId: app.id, app, initialPath }, prev),
+    ]);
+  }, []);
+
+  const duplicate = useCallback((id: string) => {
+    setWindows((prev) => {
+      const src = prev.find((w) => w.id === id);
+      if (!src || !src.app.multi) return prev;
+      const copy = createWin(
+        {
+          appId: src.appId,
+          app: src.app,
+          initialPath: src.currentPath,
+          initial: { w: src.w, h: src.h },
+        },
+        prev,
+      );
+      // posiciona ligeiramente deslocado da origem
+      copy.x = Math.min(src.x + 24, window.innerWidth - copy.w - 8);
+      copy.y = Math.min(src.y + 24, window.innerHeight - DOCK_RESERVED - copy.h - 8);
+      return [...prev, copy];
+    });
+  }, []);
+
+  const close = useCallback((id: string) => {
+    setWindows((prev) => prev.filter((w) => w.id !== id));
+  }, []);
+
+  const closeAll = useCallback((appId: string) => {
+    setWindows((prev) => prev.filter((w) => w.appId !== appId));
+  }, []);
+
+  const minimize = useCallback((id: string) => {
+    setWindows((prev) => prev.map((w) => (w.id === id ? { ...w, minimized: true } : w)));
+  }, []);
+
+  const toggleMaximize = useCallback((id: string) => {
+    setWindows((prev) =>
+      prev.map((w) => {
+        if (w.id !== id) return w;
+        if (w.maximized && w.prev) {
+          return { ...w, ...w.prev, maximized: false, prev: undefined };
+        }
+        const vw = window.innerWidth;
+        const vh = window.innerHeight - TOP_BAR - DOCK_RESERVED;
+        return {
+          ...w,
+          prev: { x: w.x, y: w.y, w: w.w, h: w.h },
+          x: 8,
+          y: TOP_BAR + 8,
+          w: vw - 16,
+          h: vh - 8,
+          maximized: true,
+          z: bumpZ(),
+        };
+      }),
+    );
+  }, []);
+
+  const move = useCallback((id: string, x: number, y: number) => {
+    setWindows((prev) =>
+      prev.map((w) => {
+        if (w.id !== id || w.maximized) return w;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const minY = TOP_BAR + 8;
+        const maxY = vh - DOCK_RESERVED - 40;
+        const minX = -(w.w - 80);
+        const maxX = vw - 80;
+        return {
+          ...w,
+          x: Math.max(minX, Math.min(x, maxX)),
+          y: Math.max(minY, Math.min(y, maxY)),
+        };
+      }),
+    );
+  }, []);
+
+  const resize = useCallback((id: string, w: number, h: number) => {
+    setWindows((prev) =>
+      prev.map((win) =>
+        win.id === id && !win.maximized
+          ? {
+              ...win,
+              w: Math.max(win.minSize?.w ?? 320, w),
+              h: Math.max(win.minSize?.h ?? 200, h),
+            }
+          : win,
+      ),
+    );
+  }, []);
+
+  const setCurrentPath = useCallback((id: string, path: string) => {
+    setWindows((prev) =>
+      prev.map((w) => (w.id === id && w.currentPath !== path ? { ...w, currentPath: path } : w)),
+    );
+  }, []);
+
+  const setDynamicTitle = useCallback((id: string, title: string | null) => {
+    setWindows((prev) =>
+      prev.map((w) => {
+        if (w.id !== id) return w;
+        const fallback =
+          w.instanceIndex > 1 ? `${w.baseTitle} (${w.instanceIndex})` : w.baseTitle;
+        const next = title && title.trim() ? title : fallback;
+        return w.title === next ? w : { ...w, title: next };
+      }),
+    );
+  }, []);
+
+  const activeId = useMemo(() => {
+    const visible = windows.filter((w) => !w.minimized);
+    if (!visible.length) return null;
+    return visible.reduce((a, b) => (a.z > b.z ? a : b)).id;
+  }, [windows]);
+
+  const value = useMemo<Ctx>(
+    () => ({
+      windows,
+      open,
+      openNew,
+      duplicate,
+      close,
+      closeAll,
+      focus,
+      minimize,
+      toggleMaximize,
+      move,
+      resize,
+      setCurrentPath,
+      setDynamicTitle,
+      activeId,
+    }),
+    [
+      windows,
+      open,
+      openNew,
+      duplicate,
+      close,
+      closeAll,
+      focus,
+      minimize,
+      toggleMaximize,
+      move,
+      resize,
+      setCurrentPath,
+      setDynamicTitle,
+      activeId,
+    ],
+  );
+
+  return <WinCtx.Provider value={value}>{children}</WinCtx.Provider>;
+}
+
+export function useWindows() {
+  const ctx = useContext(WinCtx);
+  if (!ctx) throw new Error("WindowsProvider missing");
+  return ctx;
+}
+
+// -----------------------------------------------------------------------------
+// <WindowFrame> — visual chrome + interactions
+// -----------------------------------------------------------------------------
+export function WindowFrame({ win }: { win: WinState }) {
+  const {
+    focus,
+    close,
+    minimize,
+    toggleMaximize,
+    move,
+    resize,
+    activeId,
+    openNew,
+    duplicate,
+    setCurrentPath,
+    setDynamicTitle,
+  } = useWindows();
+  const isActive = activeId === win.id;
+  const startDrag = useRef<{ mx: number; my: number; wx: number; wy: number } | null>(null);
+  const startResize = useRef<{ mx: number; my: number; w: number; h: number } | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      if (startDrag.current) {
+        const dx = e.clientX - startDrag.current.mx;
+        const dy = e.clientY - startDrag.current.my;
+        move(win.id, startDrag.current.wx + dx, startDrag.current.wy + dy);
+      } else if (startResize.current) {
+        const dx = e.clientX - startResize.current.mx;
+        const dy = e.clientY - startResize.current.my;
+        resize(win.id, startResize.current.w + dx, startResize.current.h + dy);
+      }
+    }
+    function onUp() {
+      startDrag.current = null;
+      startResize.current = null;
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [win.id, move, resize]);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onClick() {
+      setMenuOpen(false);
+    }
+    window.addEventListener("click", onClick);
+    return () => window.removeEventListener("click", onClick);
+  }, [menuOpen]);
+
+  // Renderiza o app uma vez, memo por id+initialPath — preserva estado entre re-renders.
+  const appProps: AppInstanceProps = useMemo(
+    () => ({
+      instanceId: win.id,
+      initialPath: win.initialPath,
+      onPathChange: (p) => setCurrentPath(win.id, p),
+      onTitleChange: (t) => setDynamicTitle(win.id, t),
+      formFactor: "desktop",
+    }),
+    [win.id, win.initialPath, setCurrentPath, setDynamicTitle],
+  );
+  const content = useMemo(() => win.app.render(appProps), [win.app, appProps]);
+
+  if (win.minimized) return null;
+
+  const isMulti = !!win.app.multi;
+
+  return (
+    <div
+      className={`os-glass absolute flex flex-col overflow-hidden rounded-xl ${
+        isActive ? "os-window-focus" : "opacity-95"
+      }`}
+      style={{
+        left: win.x,
+        top: win.y,
+        width: win.w,
+        height: win.h,
+        zIndex: win.z,
+      }}
+      onMouseDown={() => focus(win.id)}
+    >
+      <div
+        className="flex h-10 shrink-0 items-center justify-between border-b border-border/60 px-2 select-none"
+        onMouseDown={(e) => {
+          if ((e.target as HTMLElement).closest("button")) return;
+          startDrag.current = { mx: e.clientX, my: e.clientY, wx: win.x, wy: win.y };
+          focus(win.id);
+        }}
+        onDoubleClick={() => toggleMaximize(win.id)}
+      >
+        <div className="relative flex items-center gap-2 text-sm font-medium">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              focus(win.id);
+              setMenuOpen((o) => !o);
+            }}
+            title="Menu da janela"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            className="group flex items-center gap-1 rounded-md px-1.5 py-1 text-primary hover:bg-accent"
+          >
+            <span className="grid h-4 w-4 place-items-center">
+              {/* ícone do app some no hover; dá lugar ao chevron */}
+              <span className="block group-hover:hidden">{win.app.Icon ? <win.app.Icon className="h-4 w-4" /> : null}</span>
+              <span className="hidden group-hover:block">
+                <ChevronGlyph />
+              </span>
+            </span>
+            <span className="text-foreground">{win.title}</span>
+          </button>
+          {menuOpen && (
+            <div
+              role="menu"
+              onClick={(e) => e.stopPropagation()}
+              className="os-glass absolute top-full left-0 z-[10000] mt-1 w-52 rounded-xl p-1 text-sm shadow-xl"
+            >
+              {isMulti && (
+                <>
+                  <MenuItem
+                    label="Nova janela"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      openNew(win.app);
+                    }}
+                  />
+                  <MenuItem
+                    label="Duplicar janela"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      duplicate(win.id);
+                    }}
+                  />
+                  <MenuDivider />
+                </>
+              )}
+              <MenuItem
+                label="Minimizar"
+                onClick={() => {
+                  setMenuOpen(false);
+                  minimize(win.id);
+                }}
+              />
+              <MenuItem
+                label={win.maximized ? "Restaurar" : "Maximizar"}
+                onClick={() => {
+                  setMenuOpen(false);
+                  toggleMaximize(win.id);
+                }}
+              />
+              <MenuDivider />
+              <MenuItem
+                label="Fechar"
+                tone="danger"
+                onClick={() => {
+                  setMenuOpen(false);
+                  close(win.id);
+                }}
+              />
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-1 pr-1">
+          <WinButton onClick={() => minimize(win.id)} title="Minimizar" color="bg-amber-400" />
+          <WinButton
+            onClick={() => toggleMaximize(win.id)}
+            title={win.maximized ? "Restaurar" : "Maximizar"}
+            color="bg-emerald-400"
+          />
+          <WinButton onClick={() => close(win.id)} title="Fechar" color="bg-rose-500" />
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-hidden">{content}</div>
+      {!win.maximized && (
+        <div
+          className="absolute right-0 bottom-0 h-4 w-4 cursor-se-resize"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            startResize.current = { mx: e.clientX, my: e.clientY, w: win.w, h: win.h };
+            focus(win.id);
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ChevronGlyph() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M4 6l4 4 4-4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function MenuItem({
+  label,
+  onClick,
+  tone,
+}: {
+  label: string;
+  onClick: () => void;
+  tone?: "danger";
+}) {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      className={`flex w-full items-center rounded-lg px-3 py-1.5 text-left text-sm hover:bg-accent ${
+        tone === "danger" ? "text-rose-500 hover:text-rose-500" : "text-foreground"
+      }`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function MenuDivider() {
+  return <div className="my-1 h-px bg-border" />;
+}
+
+function WinButton({
+  onClick,
+  title,
+  color,
+}: {
+  onClick: () => void;
+  title: string;
+  color: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      className={`h-3.5 w-3.5 rounded-full ${color} transition-opacity hover:opacity-80`}
+    />
+  );
+}
