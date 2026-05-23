@@ -4,6 +4,7 @@
 //   back-overlay (60) < shade (70). Dock fica sempre on top do app.
 // =============================================================================
 
+import { useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useApps } from "../../lib/use-apps";
 import { useMobState, MobStateProvider } from "../../lib/mob-state";
@@ -31,7 +32,11 @@ export function MobileShell({ user, onLogout }: MobileShellProps) {
 
 function MobileShellInner({ user, onLogout }: MobileShellProps) {
   const { apps, loading, error } = useApps();
-  const { foregroundId, switcherOpen, shadeOpen, drawerOpen } = useMobState();
+  const { foregroundId, switcherOpen, shadeOpen, drawerOpen, hydrate } = useMobState();
+
+  useEffect(() => {
+    if (apps.length) hydrate(apps);
+  }, [apps, hydrate]);
 
   async function logout() {
     await api.logout();

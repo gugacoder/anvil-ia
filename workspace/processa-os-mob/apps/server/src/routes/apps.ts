@@ -53,12 +53,24 @@ export const REGISTRY: AppManifest[] = [
     defaultPath: "/",
   },
   {
+    slug: "calendario",
+    label: "Calendário",
+    icon: "Calendar",
+    kind: "federated",
+    basePath: "calendario",
+    devPort: 5644,
+    defaultSize: { w: 900, h: 700 },
+    order: 3,
+    multi: true,
+    defaultPath: "/",
+  },
+  {
     slug: "arquivos",
     label: "Arquivos",
     icon: "FolderOpen",
     kind: "internal",
     defaultSize: { w: 720, h: 500 },
-    order: 3,
+    order: 4,
   },
   {
     slug: "relogio",
@@ -66,7 +78,7 @@ export const REGISTRY: AppManifest[] = [
     icon: "Clock",
     kind: "internal",
     defaultSize: { w: 540, h: 380 },
-    order: 4,
+    order: 5,
   },
   {
     slug: "sistema",
@@ -74,7 +86,15 @@ export const REGISTRY: AppManifest[] = [
     icon: "Settings",
     kind: "internal",
     defaultSize: { w: 560, h: 440 },
-    order: 5,
+    order: 6,
+  },
+  {
+    slug: "contador",
+    label: "Contador",
+    icon: "Hash",
+    kind: "internal",
+    defaultSize: { w: 520, h: 520 },
+    order: 7,
   },
 ];
 

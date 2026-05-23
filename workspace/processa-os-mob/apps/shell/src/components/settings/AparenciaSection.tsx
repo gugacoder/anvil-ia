@@ -28,7 +28,7 @@ function ModeSegmented() {
   return (
     <div>
       <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">Modo</div>
-      <div className="grid grid-cols-3 gap-2 rounded-xl bg-card/40 p-1 ring-1 ring-border/40">
+      <div className="inline-flex gap-1 rounded-xl bg-card/40 p-1 ring-1 ring-border/40">
         {options.map((o) => {
           const active = mode === o.key;
           const Icon = o.Icon;
@@ -38,7 +38,7 @@ function ModeSegmented() {
               type="button"
               onClick={() => setMode(o.key)}
               aria-pressed={active}
-              className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors ${
+              className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm transition-colors ${
                 active
                   ? "bg-primary text-primary-foreground"
                   : "text-foreground hover:bg-card/80"
@@ -62,7 +62,7 @@ function ColorThemeGrid() {
       <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
         Tema de cor
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid max-w-[760px] grid-cols-2 gap-3 sm:grid-cols-4">
         {COLOR_THEMES.map((t) => (
           <ColorThemeCard
             key={t.key}

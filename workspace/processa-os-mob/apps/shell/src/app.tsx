@@ -3,17 +3,29 @@ import { api, type User } from "./lib/api";
 import { LockScreen } from "./components/LockScreen";
 import { Desktop } from "./components/Desktop";
 import { MobileShell } from "./components/mobile/MobileShell";
+import { WorkspaceShell } from "./components/workspace/WorkspaceShell";
 import { ThemeProvider } from "./lib/theme";
 import { ColorThemeProvider } from "./lib/color-theme";
 import { NotificationsProvider } from "./lib/notifications";
 import { WindowsProvider } from "./lib/windows";
-import { useBreakpoint, shellFor } from "./lib/use-breakpoint";
+import { UserSubProvider } from "./lib/user-context";
+import { clearUser } from "./lib/app-storage";
+import { useBreakpoint, categoryFor } from "./lib/use-breakpoint";
+import { resolveLayout } from "./lib/layout";
+
+type ShellKind = "mobile" | "windowed" | "workspace";
+
+function pickShell(bp: ReturnType<typeof useBreakpoint>): ShellKind {
+  const category = categoryFor(bp);
+  if (!category) return "mobile";
+  return resolveLayout(category).shell;
+}
 
 export function App() {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
-  const breakpoint = useBreakpoint();
-  const shell = shellFor(breakpoint);
+  const bp = useBreakpoint();
+  const shell = pickShell(bp);
 
   useEffect(() => {
     api.me().then((u) => {
@@ -21,6 +33,11 @@ export function App() {
       setReady(true);
     });
   }, []);
+
+  function handleLogout() {
+    if (user) clearUser(user.sub);
+    setUser(null);
+  }
 
   return (
     <ThemeProvider>
@@ -30,15 +47,19 @@ export function App() {
             <div className="text-sm text-muted-foreground">Carregando…</div>
           </div>
         ) : user ? (
-          <NotificationsProvider>
-            {shell === "mobile" ? (
-              <MobileShell user={user} onLogout={() => setUser(null)} />
-            ) : (
-              <WindowsProvider>
-                <Desktop user={user} onLogout={() => setUser(null)} />
-              </WindowsProvider>
-            )}
-          </NotificationsProvider>
+          <UserSubProvider sub={user.sub}>
+            <NotificationsProvider>
+              {shell === "mobile" ? (
+                <MobileShell user={user} onLogout={handleLogout} />
+              ) : shell === "workspace" ? (
+                <WorkspaceShell user={user} onLogout={handleLogout} />
+              ) : (
+                <WindowsProvider>
+                  <Desktop user={user} onLogout={handleLogout} />
+                </WindowsProvider>
+              )}
+            </NotificationsProvider>
+          </UserSubProvider>
         ) : (
           <LockScreen onLogin={setUser} />
         )}

@@ -16,3 +16,10 @@ declare module "notas/App" {
   const App: ComponentType<AppInstanceProps>;
   export default App;
 }
+
+declare module "calendario/App" {
+  import type { ComponentType } from "react";
+  import type { AppInstanceProps } from "./apps/registry";
+  const App: ComponentType<AppInstanceProps>;
+  export default App;
+}

@@ -6,8 +6,8 @@ import federation from "@originjs/vite-plugin-federation";
 
 const PUBLIC_PATH = process.env.VITE_PUBLIC_PATH ?? "/so/";
 
-// Shell como host federado. Consome remotes (chat, notas) via Module Federation.
-// Em dev, o shell proxia /so/chat/* e /so/notas/* para os Vite SPA respectivos.
+// Shell como host federado. Consome remotes (chat, notas, calendario) via Module Federation.
+// Em dev, o shell proxia /so/<slug>/* para os Vite SPA respectivos.
 // O remoteEntry.js de cada remote fica acessivel via esse proxy.
 
 export default defineConfig({
@@ -21,6 +21,7 @@ export default defineConfig({
       remotes: {
         chat: "/so/chat/assets/remoteEntry.js",
         notas: "/so/notas/assets/remoteEntry.js",
+        calendario: "/so/calendario/assets/remoteEntry.js",
       },
       shared: ["react", "react-dom"],
     }),
@@ -36,6 +37,7 @@ export default defineConfig({
       "/so/api": { target: "http://localhost:5640", changeOrigin: false },
       "/so/chat": { target: "http://localhost:5642", changeOrigin: false, ws: true },
       "/so/notas": { target: "http://localhost:5643", changeOrigin: false, ws: true },
+      "/so/calendario": { target: "http://localhost:5644", changeOrigin: false, ws: true },
     },
   },
 });

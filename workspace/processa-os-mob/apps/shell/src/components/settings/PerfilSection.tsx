@@ -21,7 +21,7 @@ export function PerfilSection() {
         <p className="text-xs text-muted-foreground">Sua conta e sessão.</p>
       </header>
 
-      <div className="rounded-xl border border-border bg-card/60 p-4">
+      <div className="max-w-[560px] rounded-xl border border-border bg-card/60 p-4">
         {me ? (
           <div className="flex items-center gap-3">
             <div className="grid h-12 w-12 place-items-center rounded-full bg-primary text-primary-foreground font-bold">

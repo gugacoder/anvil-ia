@@ -1,6 +1,12 @@
 // =============================================================================
 // Window Manager — abre apps como janelas com drag, resize, min/max/close, z-index.
 // Suporta multi-instância para apps com flag `multi`.
+//
+// Persistência: a lista de janelas (sem o `app: AppDef`, que vem do registry)
+// e o contador de instâncias por app ficam em localStorage sob
+// `pos:shell:<sub>:win`. Estado de cada app vive sob `pos:state:<sub>:<winId>:*`
+// via `useAppStorage(instanceId, ...)`. Minimizar não desmonta — mantém o
+// estado em memória; reload do browser rehydrata pelo storage.
 // =============================================================================
 
 import {
@@ -14,6 +20,8 @@ import {
   type ReactNode,
 } from "react";
 import type { AppDef, AppInstanceProps } from "../apps/registry";
+import { clearScope, loadJSON, saveJSON, shellKey } from "./app-storage";
+import { useUserSub } from "./user-context";
 
 export interface WinSpec {
   appId: string;
@@ -60,7 +68,38 @@ interface Ctx {
   setCurrentPath: (id: string, path: string) => void;
   setDynamicTitle: (id: string, title: string | null) => void;
   activeId: string | null;
+  /** Chamado após apps carregarem do registry — re-monta janelas salvas. */
+  hydrate: (apps: AppDef[]) => void;
 }
+
+/** Versão serializável de WinState (sem AppDef nem snapshot de minimize). */
+interface PersistedWin {
+  id: string;
+  appId: string;
+  title: string;
+  baseTitle: string;
+  instanceIndex: number;
+  initialPath: string;
+  currentPath: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  z: number;
+  openedAt: number;
+  minSize?: { w: number; h: number };
+  minimized: boolean;
+  maximized: boolean;
+  prev?: { x: number; y: number; w: number; h: number };
+}
+
+interface PersistedWins {
+  windows: PersistedWin[];
+  idCounter: number;
+  nextZ: number;
+}
+
+const STORAGE_KEY = "win";
 
 const WinCtx = createContext<Ctx | null>(null);
 
@@ -70,6 +109,9 @@ const DOCK_RESERVED = 80;
 // Janelas ficam confinadas abaixo disso para garantir always-on-top da shell.
 const WIN_Z_MAX = 9000;
 
+// Contadores module-level — re-inicializados a partir do storage no boot
+// pelo provider (via `restoreCounters`), pra IDs e z não colidirem com o que
+// já foi serializado.
 let nextZ = 10;
 function bumpZ() {
   nextZ = nextZ >= WIN_Z_MAX ? 10 : nextZ + 1;
@@ -80,6 +122,11 @@ let idCounter = 0;
 function genId(appId: string) {
   idCounter += 1;
   return `${appId}-${idCounter}`;
+}
+
+function restoreCounters(z: number, ids: number) {
+  if (z > nextZ) nextZ = z;
+  if (ids > idCounter) idCounter = ids;
 }
 
 function fitToViewport(w: WinState): WinState {
@@ -127,8 +174,59 @@ function createWin(spec: WinSpec, prevWindows: WinState[]): WinState {
   });
 }
 
+function toPersisted(w: WinState): PersistedWin {
+  const { app, ...rest } = w;
+  void app;
+  return rest;
+}
+
+function parseInstanceCounter(id: string): number {
+  const m = /-([0-9]+)$/.exec(id);
+  return m ? parseInt(m[1], 10) : 0;
+}
+
 export function WindowsProvider({ children }: { children: ReactNode }) {
+  const sub = useUserSub();
+  const fullKey = shellKey(sub, STORAGE_KEY);
+
+  // Snapshot persistido — sem AppDef. Resolvido em `hydrate(apps)`.
+  const persistedRef = useRef<PersistedWins>(
+    loadJSON<PersistedWins>(fullKey, { windows: [], idCounter: 0, nextZ: 10 }),
+  );
+  // Aplica os contadores imediatamente — antes de qualquer createWin.
+  restoreCounters(persistedRef.current.nextZ, persistedRef.current.idCounter);
+
   const [windows, setWindows] = useState<WinState[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+
+  // Persiste cada mudança depois de hidratar
+  useEffect(() => {
+    if (!hydrated) return;
+    saveJSON(fullKey, {
+      windows: windows.map(toPersisted),
+      idCounter,
+      nextZ,
+    } satisfies PersistedWins);
+  }, [fullKey, windows, hydrated]);
+
+  const hydrate = useCallback((apps: AppDef[]) => {
+    setHydrated((already) => {
+      if (already) return already;
+      const byId = new Map(apps.map((a) => [a.id, a]));
+      const restored: WinState[] = [];
+      let maxIds = idCounter;
+      for (const p of persistedRef.current.windows) {
+        const app = byId.get(p.appId);
+        if (!app) continue;
+        restored.push({ ...p, app });
+        const n = parseInstanceCounter(p.id);
+        if (n > maxIds) maxIds = n;
+      }
+      restoreCounters(persistedRef.current.nextZ, maxIds);
+      setWindows(restored);
+      return true;
+    });
+  }, []);
 
   const focus = useCallback((id: string) => {
     setWindows((prev) =>
@@ -178,13 +276,25 @@ export function WindowsProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const close = useCallback((id: string) => {
-    setWindows((prev) => prev.filter((w) => w.id !== id));
-  }, []);
+  const close = useCallback(
+    (id: string) => {
+      setWindows((prev) => prev.filter((w) => w.id !== id));
+      clearScope(sub, id);
+    },
+    [sub],
+  );
 
-  const closeAll = useCallback((appId: string) => {
-    setWindows((prev) => prev.filter((w) => w.appId !== appId));
-  }, []);
+  const closeAll = useCallback(
+    (appId: string) => {
+      setWindows((prev) => {
+        for (const w of prev) {
+          if (w.appId === appId) clearScope(sub, w.id);
+        }
+        return prev.filter((w) => w.appId !== appId);
+      });
+    },
+    [sub],
+  );
 
   const minimize = useCallback((id: string) => {
     setWindows((prev) => prev.map((w) => (w.id === id ? { ...w, minimized: true } : w)));
@@ -286,6 +396,7 @@ export function WindowsProvider({ children }: { children: ReactNode }) {
       setCurrentPath,
       setDynamicTitle,
       activeId,
+      hydrate,
     }),
     [
       windows,
@@ -302,6 +413,7 @@ export function WindowsProvider({ children }: { children: ReactNode }) {
       setCurrentPath,
       setDynamicTitle,
       activeId,
+      hydrate,
     ],
   );
 
@@ -382,8 +494,6 @@ export function WindowFrame({ win }: { win: WinState }) {
   );
   const content = useMemo(() => win.app.render(appProps), [win.app, appProps]);
 
-  if (win.minimized) return null;
-
   const isMulti = !!win.app.multi;
 
   return (
@@ -397,7 +507,10 @@ export function WindowFrame({ win }: { win: WinState }) {
         width: win.w,
         height: win.h,
         zIndex: win.z,
+        // Minimizar não desmonta — só esconde — pra preservar estado interno.
+        display: win.minimized ? "none" : undefined,
       }}
+      aria-hidden={win.minimized}
       onMouseDown={() => focus(win.id)}
     >
       <div

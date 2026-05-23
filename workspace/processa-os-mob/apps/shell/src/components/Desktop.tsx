@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { TopBar } from "./TopBar";
 import { Dock } from "./Dock";
 import { DesktopIcons } from "./DesktopIcons";
@@ -9,9 +9,13 @@ import type { AppDef } from "../apps/registry";
 import { api, type User } from "../lib/api";
 
 export function Desktop({ user, onLogout }: { user: User; onLogout: () => void }) {
-  const { windows, open } = useWindows();
+  const { windows, open, hydrate } = useWindows();
   const [notifOpen, setNotifOpen] = useState(false);
   const { apps, loading, error } = useApps();
+
+  useEffect(() => {
+    if (apps.length) hydrate(apps);
+  }, [apps, hydrate]);
 
   function launch(app: AppDef) {
     open({

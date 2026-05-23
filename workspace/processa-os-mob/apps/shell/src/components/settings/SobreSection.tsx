@@ -6,7 +6,7 @@ export function SobreSection() {
         <h2 className="text-lg font-semibold">Sobre</h2>
         <p className="text-xs text-muted-foreground">Processa OS.</p>
       </header>
-      <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+      <dl className="grid max-w-[560px] grid-cols-2 gap-3 text-sm sm:grid-cols-3">
         <InfoRow label="Versão" value="0.1.0" />
         <InfoRow label="Edition" value="mob" />
         <InfoRow label="Shell" value="@mob/shell" />

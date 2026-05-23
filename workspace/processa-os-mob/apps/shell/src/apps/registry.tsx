@@ -11,12 +11,15 @@ import {
   FolderOpen,
   Settings,
   Clock as ClockIcon,
+  Calendar as CalendarIcon,
+  Hash,
   AppWindow,
   type LucideIcon,
 } from "lucide-react";
 import type { ReactNode } from "react";
 import { ArquivosApp } from "./ArquivosApp";
 import { RelogioApp } from "./RelogioApp";
+import { ContadorApp } from "./ContadorApp";
 import { FederatedApp } from "./FederatedApp";
 import { SettingsApp } from "../components/SettingsApp";
 
@@ -69,6 +72,8 @@ const ICONS: Record<string, LucideIcon> = {
   FolderOpen,
   Settings,
   Clock: ClockIcon,
+  Calendar: CalendarIcon,
+  Hash,
 };
 
 const INTERNAL_RENDERERS: Record<string, (props: AppInstanceProps) => ReactNode> = {
@@ -76,6 +81,7 @@ const INTERNAL_RENDERERS: Record<string, (props: AppInstanceProps) => ReactNode>
   relogio: () => <RelogioApp />,
   // sistema = SettingsApp, componente unico que adapta layout via formFactor.
   sistema: (props) => <SettingsApp {...props} />,
+  contador: (props) => <ContadorApp {...props} />,
 };
 
 // Mapa de loaders para remotes federados.
@@ -86,6 +92,7 @@ const FEDERATED_LOADERS: Record<
 > = {
   chat: () => import("chat/App"),
   notas: () => import("notas/App"),
+  calendario: () => import("calendario/App"),
 };
 
 export function manifestToDef(m: AppManifest): AppDef {

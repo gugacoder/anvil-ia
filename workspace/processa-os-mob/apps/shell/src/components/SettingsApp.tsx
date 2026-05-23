@@ -8,13 +8,15 @@
 // =============================================================================
 
 import { useState, type ComponentType } from "react";
-import { User, Palette, Info, ChevronRight, ArrowLeft } from "lucide-react";
+import { User, Palette, LayoutPanelLeft, Info, ChevronRight, ArrowLeft } from "lucide-react";
 import type { AppInstanceProps } from "../apps/registry";
+import { AppContent } from "./AppContent";
 import { PerfilSection } from "./settings/PerfilSection";
 import { AparenciaSection } from "./settings/AparenciaSection";
+import { LayoutSection } from "./settings/LayoutSection";
 import { SobreSection } from "./settings/SobreSection";
 
-type SectionKey = "perfil" | "aparencia" | "sobre";
+type SectionKey = "perfil" | "aparencia" | "layout" | "sobre";
 
 interface Section {
   key: SectionKey;
@@ -26,6 +28,7 @@ interface Section {
 const SECTIONS: Section[] = [
   { key: "perfil", label: "Perfil", Icon: User, Component: PerfilSection },
   { key: "aparencia", label: "Aparência", Icon: Palette, Component: AparenciaSection },
+  { key: "layout", label: "Layout", Icon: LayoutPanelLeft, Component: LayoutSection },
   { key: "sobre", label: "Sobre", Icon: Info, Component: SobreSection },
 ];
 
@@ -84,8 +87,12 @@ function DesktopLayout({
           );
         })}
       </nav>
-      <div className="min-w-0 flex-1 overflow-auto px-6 py-5">
-        <Current />
+      <div className="min-w-0 flex-1 overflow-auto py-5">
+        <AppContent width="comfortable" flush>
+          <div className="px-6">
+            <Current />
+          </div>
+        </AppContent>
       </div>
     </div>
   );

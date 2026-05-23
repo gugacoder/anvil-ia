@@ -4,33 +4,37 @@
 // real via matchMedia.
 //
 // Limites (largura em px):
-//   mobile   :  <  768
-//   tablet   : 768 – 1023
-//   desktop  : 1024 – 1919
-//   tv       :  >= 1920
+//   mobile        :  <  600
+//   tablet-pequeno:  600 – 819
+//   tablet-grande :  820 – 1199
+//   desktop       :  1200 – 1919
+//   tv            :  >= 1920
 // =============================================================================
 
 import { useSyncExternalStore } from "react";
 
-export type Breakpoint = "mobile" | "tablet" | "desktop" | "tv";
+export type Breakpoint = "mobile" | "tablet-pequeno" | "tablet-grande" | "desktop" | "tv";
 
-const QUERIES = {
-  mobile: "(max-width: 767px)",
-  tablet: "(min-width: 768px) and (max-width: 1023px)",
-  desktop: "(min-width: 1024px) and (max-width: 1919px)",
+const QUERIES: Record<Breakpoint, string> = {
+  mobile: "(max-width: 599px)",
+  "tablet-pequeno": "(min-width: 600px) and (max-width: 819px)",
+  "tablet-grande": "(min-width: 820px) and (max-width: 1199px)",
+  desktop: "(min-width: 1200px) and (max-width: 1919px)",
   tv: "(min-width: 1920px)",
-} as const;
+};
+
+const ORDER: Breakpoint[] = ["mobile", "tablet-pequeno", "tablet-grande", "desktop", "tv"];
 
 function detect(): Breakpoint {
   if (typeof window === "undefined") return "desktop";
-  for (const bp of ["mobile", "tablet", "desktop", "tv"] as const) {
+  for (const bp of ORDER) {
     if (window.matchMedia(QUERIES[bp]).matches) return bp;
   }
   return "desktop";
 }
 
 function subscribe(callback: () => void): () => void {
-  const mqs = Object.values(QUERIES).map((q) => window.matchMedia(q));
+  const mqs = ORDER.map((bp) => window.matchMedia(QUERIES[bp]));
   mqs.forEach((mq) => mq.addEventListener("change", callback));
   return () => mqs.forEach((mq) => mq.removeEventListener("change", callback));
 }
@@ -39,11 +43,13 @@ export function useBreakpoint(): Breakpoint {
   return useSyncExternalStore(subscribe, detect, () => "desktop");
 }
 
-// Mapeia breakpoint -> shell que renderizar. Tablet usa MobileShell ate ter
-// shell propria. TV usa Desktop. Quando criar tablet/tv shell, ajustar aqui.
-export type Shell = "mobile" | "desktop";
+/** Categoria configuravel de layout (mobile e tablet-pequeno nao tem opcao). */
+export type LayoutCategory = "tablet" | "desktop" | "tv";
 
-export function shellFor(bp: Breakpoint): Shell {
-  if (bp === "mobile" || bp === "tablet") return "mobile";
-  return "desktop";
+/** Devolve a categoria de layout pro breakpoint atual, ou null se nao configuravel. */
+export function categoryFor(bp: Breakpoint): LayoutCategory | null {
+  if (bp === "mobile" || bp === "tablet-pequeno") return null;
+  if (bp === "tablet-grande") return "tablet";
+  if (bp === "desktop") return "desktop";
+  return "tv";
 }

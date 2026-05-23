@@ -5,8 +5,8 @@
   "type": "module",
   "workspaces": ["apps/*"],
   "scripts": {
-    "dev": "concurrently -k -n srv,shl,cht,nts -c magenta,cyan,yellow,green \"npm run dev -w apps/server\" \"npm run dev -w apps/shell\" \"npm run dev -w apps/chat\" \"npm run dev -w apps/notas\"",
-    "build": "npm run build -w apps/chat && npm run build -w apps/notas && npm run build -w apps/shell && npm run build -w apps/server"
+    "dev": "concurrently -k -n srv,shl,cht,nts,cal -c magenta,cyan,yellow,green,blue \"npm run dev -w apps/server\" \"npm run dev -w apps/shell\" \"npm run dev -w apps/chat\" \"npm run dev -w apps/notas\" \"npm run dev -w apps/calendario\"",
+    "build": "npm run build -w apps/chat && npm run build -w apps/notas && npm run build -w apps/calendario && npm run build -w apps/shell && npm run build -w apps/server"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
