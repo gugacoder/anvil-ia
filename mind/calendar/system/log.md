@@ -48,3 +48,17 @@
 - Articles created: [[concepts/processa-source-control]]
 - Articles updated: none
 - Notes: Thin log — single session. New concept: SVN/network share topology across Processa hosts (Director VB6 at 172.27.0.5 HTTP-only, procedures at 172.27.3.10 SMB, corporate shares at 172.27.0.4). Corrects recurring confusion between the two SVN repos. Other session content (secret handling rules, agent identity cleanup) went to CLAUDE.md/AGENTS.md as operational rules, not wiki material.
+
+## [2026-05-23T04:02:04-03:00] compile | 2026-05-19.md (full recompile with 4 sessions)
+
+- Source: calendar/notes/2026-05-19.md
+- Articles created: [[concepts/anchor-mission-persona]], [[concepts/vite-dev-gate-pattern]], [[concepts/feature-granularity-heuristic]], [[connections/anchor-curator-quality-gate]]
+- Articles updated: [[concepts/director-studio]] (brand "Processa Studio", manifest 27→132 features, auditoria pós-harness F123-F131), [[concepts/director-studio-wave-model]] (stateless dwave, Ralph Loop 132 features, feature granularity heuristic, retrofit recipe), [[concepts/director-studio-agent-team]] (smith↔ui-tester workflow validated, anti-pattern flags top 5)
+- Notes: Full recompile of 2026-05-19.md which now has 4 sessions (00:47, 14:47, 14:48, 03:00) vs the 1 session at prior compile. Rich methodology session (03:00) with NIC yielded anchor concept (MISSION+PERSONA), feature granularity heuristic, and retrofit recipe. Audit session (18:00) yielded vite dev-gate pattern and 9 post-harness débits. Session 00:47 SVN/source-control content already compiled in prior pass. KB total: 32 articles + team concept.
+
+## [2026-05-23T04:08:19-03:00] compile | 2026-05-22.md
+
+- Source: calendar/notes/2026-05-22.md
+- Articles created: [[concepts/processa-os]], [[concepts/processa-os-federation]], [[concepts/openclaude-sdk-chat]]
+- Articles updated: none (brands session already captured in maps/brands.md at 2026-05-22)
+- Notes: 3 sessions — brands migration (already in maps/brands.md), Processa OS prototype (GNOME-like web OS with window manager, 5 real apps, SSE notifications, smoke test green), and Processa OS Fed architecture audit (Module Federation via @originjs/vite-plugin-federation, zero iframe, no shared reactive state). OpenClaude SDK+Chat vendorization pattern extracted as reusable concept across hub/jornada/processa-os. KB total: 36 articles.
